@@ -1,0 +1,34 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-lyra",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "resources/css/app.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "menuColor": "default",
+  "menuAccent": "bold",
+  "registries": {
+    "@8starlabs-ui": "https://ui.8starlabs.com/r/{name}.json",
+    "@algolia": "https://sitesearch.algolia.com/r/{name}.json",
+    "@aliimam": "https://aliimam.in/r/{name}.json",
+    "@animate-ui": "https://animate-ui.com/r/{name}.json",
+    "@mapcn": "https://mapcn.dev/r/{name}.json",
+    "@scrollxui": "https://www.scrollxui.dev/registry/{name}.json",
+    "@tour": "https://onboarding-tour.vercel.app/r/{name}.json",
+    "@openpolicy": "https://www.openpolicy.sh/r/{name}.json"
+  }
+}

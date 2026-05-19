@@ -1,0 +1,12 @@
+packages:
+  - '.'
+
+allowBuilds:
+  msw: false
+  unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - date-fns@4.2.1
+
+publicHoistPattern:
+  - '@inertiajs/core'
