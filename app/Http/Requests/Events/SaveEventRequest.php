@@ -15,8 +15,8 @@ class SaveEventRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:126'],
-            'short_description' => ['nullable', 'string', 'max:280'],
+            'name' => ['required', 'string', 'min:6', 'max:120'],
+            'short_description' => ['nullable', 'string', 'min:32', 'max:180'],
             'description' => ['nullable', 'string', 'max:65535'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
@@ -26,7 +26,7 @@ class SaveEventRequest extends FormRequest
             'sales_end_at' => ['nullable', 'date', 'after:sales_start_at'],
             'visibility' => ['required', Rule::enum(EventVisibility::class)],
             'is_featured' => ['sometimes', 'boolean'],
-            'capacity' => ['nullable', 'integer', 'min:1', 'max:10000000'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:500000'],
             'minimum_age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'parking_info' => ['nullable', 'string', 'max:5000'],
             'age_requirement_details' => ['nullable', 'string', 'max:5000'],

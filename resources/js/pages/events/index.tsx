@@ -27,6 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { thumbnailUrl } from '@/lib/image-url';
 import { cn } from '@/lib/utils';
 
 type EnumOption = { value: string; label: string };
@@ -434,7 +435,19 @@ export default function EventsIndex({
                                         <div className="relative aspect-video w-full overflow-hidden bg-muted">
                                             {event.banner_image_url ? (
                                                 <img
-                                                    src={event.banner_image_url}
+                                                    src={
+                                                        thumbnailUrl(
+                                                            event.banner_image_url,
+                                                            'small',
+                                                        ) ??
+                                                        event.banner_image_url
+                                                    }
+                                                    srcSet={[
+                                                        `${thumbnailUrl(event.banner_image_url, 'small') ?? event.banner_image_url} 400w`,
+                                                        `${thumbnailUrl(event.banner_image_url, 'medium') ?? event.banner_image_url} 800w`,
+                                                    ].join(', ')}
+                                                    sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw"
+                                                    loading="lazy"
                                                     alt=""
                                                     className="size-full object-cover"
                                                     onError={(e) => {

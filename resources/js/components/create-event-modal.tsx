@@ -25,6 +25,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { VenuePicker } from '@/components/venue-picker';
+import type { VenueSelection } from '@/components/venue-picker';
 
 type EnumOption = { value: string; label: string };
 
@@ -88,6 +90,7 @@ export default function CreateEventModal({
 
     const [open, setOpen] = useState(false);
     const [name, setName] = useState<string>('');
+    const [shortDescription, setShortDescription] = useState<string>('');
     const [timezone, setTimezone] = useState<string>(browserTimezone());
     const [visibility, setVisibility] = useState<string>(
         visibilities[0]?.value ?? 'public',
@@ -96,25 +99,77 @@ export default function CreateEventModal({
     const [startsAt, setStartsAt] = useState<string>('');
     const [endsAt, setEndsAt] = useState<string>('');
     const [categoryId, setCategoryId] = useState<string>('');
+    const [venueName, setVenueName] = useState<string>('');
+    const [city, setCity] = useState<string>('');
+    const [countryCode, setCountryCode] = useState<string>('');
+    const [addressLine1, setAddressLine1] = useState<string>('');
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
     const [bannerClientError, setBannerClientError] = useState<string | null>(
         null,
     );
 
+    // Minimum allowed datetime for starts_at (now, in local time)
+    const minStartsAt = (() => {
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+
+        return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+    })();
+
+    const trimmedShortDescription = shortDescription.trim();
+
     const isValid =
-        name.trim().length > 0 &&
-        name.length <= 126 &&
+        name.trim().length >= 6 &&
+        name.length <= 120 &&
+        (trimmedShortDescription.length === 0 ||
+            (trimmedShortDescription.length >= 32 &&
+                trimmedShortDescription.length <= 180)) &&
         startsAt !== '' &&
+        startsAt >= minStartsAt &&
         endsAt !== '' &&
         endsAt > startsAt &&
         timezone !== '' &&
         visibility !== '' &&
         !bannerClientError;
 
+    const handleVenueSelect = (v: VenueSelection) => {
+        setVenueName(v.venueName);
+
+        if (v.city) {
+            setCity(v.city);
+        }
+
+        if (v.countryCode) {
+            setCountryCode(v.countryCode);
+        }
+
+        if (v.addressLine1) {
+            setAddressLine1(v.addressLine1);
+        }
+
+        setLatitude(v.latitude);
+        setLongitude(v.longitude);
+    };
+
+    const handleVenueClear = () => {
+        setLatitude(null);
+        setLongitude(null);
+        setAddressLine1('');
+    };
+
     const handleOpenChange = (next: boolean) => {
         setOpen(next);
 
         if (!next) {
             setName('');
+            setShortDescription('');
+            setVenueName('');
+            setCity('');
+            setCountryCode('');
+            setAddressLine1('');
+            setLatitude(null);
+            setLongitude(null);
             setStartsAt('');
             setEndsAt('');
             setCategoryId('');
@@ -174,7 +229,8 @@ export default function CreateEventModal({
                                                 name="name"
                                                 placeholder="Summer Music Festival"
                                                 required
-                                                maxLength={126}
+                                                minLength={6}
+                                                maxLength={120}
                                                 autoFocus
                                                 value={name}
                                                 onChange={(e) =>
@@ -182,6 +238,10 @@ export default function CreateEventModal({
                                                 }
                                                 aria-invalid={!!errors.name}
                                             />
+                                            <p className="text-xs text-muted-foreground">
+                                                {name.length}/120 characters · 6
+                                                minimum
+                                            </p>
                                         </div>
 
                                         <div className="grid gap-2">
@@ -194,12 +254,27 @@ export default function CreateEventModal({
                                             <Textarea
                                                 id="event-short-description"
                                                 name="short_description"
-                                                placeholder="One or two lines about the event"
-                                                maxLength={280}
+                                                placeholder="A short blurb that appears on cards and previews (32 chars minimum if provided)"
+                                                minLength={32}
+                                                maxLength={180}
+                                                value={shortDescription}
+                                                onChange={(e) =>
+                                                    setShortDescription(
+                                                        e.target.value,
+                                                    )
+                                                }
                                                 aria-invalid={
                                                     !!errors.short_description
                                                 }
                                             />
+                                            <p className="text-xs text-muted-foreground">
+                                                {shortDescription.length}/180
+                                                characters
+                                                {shortDescription.length > 0 &&
+                                                shortDescription.length < 32
+                                                    ? ` · ${32 - shortDescription.length} more to reach the minimum`
+                                                    : ''}
+                                            </p>
                                         </div>
 
                                         <div className="grid gap-2">
@@ -279,6 +354,7 @@ export default function CreateEventModal({
                                                     name="starts_at"
                                                     type="datetime-local"
                                                     required
+                                                    min={minStartsAt}
                                                     value={startsAt}
                                                     onChange={(e) =>
                                                         handleStartsAtChange(
@@ -414,21 +490,70 @@ export default function CreateEventModal({
                                             </div>
                                         </div>
 
+                                        <div className="grid gap-2">
+                                            <FieldLabel
+                                                htmlFor="event-venue-name"
+                                                error={errors.venue_name}
+                                            >
+                                                Venue
+                                            </FieldLabel>
+                                            <input
+                                                type="hidden"
+                                                name="venue_name"
+                                                value={venueName}
+                                            />
+                                            <input
+                                                type="hidden"
+                                                name="address_line_1"
+                                                value={addressLine1}
+                                            />
+                                            <input
+                                                type="hidden"
+                                                name="latitude"
+                                                value={
+                                                    latitude !== null
+                                                        ? String(latitude)
+                                                        : ''
+                                                }
+                                            />
+                                            <input
+                                                type="hidden"
+                                                name="longitude"
+                                                value={
+                                                    longitude !== null
+                                                        ? String(longitude)
+                                                        : ''
+                                                }
+                                            />
+                                            <VenuePicker
+                                                id="event-venue-name"
+                                                value={venueName}
+                                                onTextChange={setVenueName}
+                                                onSelect={handleVenueSelect}
+                                                onClear={handleVenueClear}
+                                                latitude={latitude}
+                                                longitude={longitude}
+                                                hasError={!!errors.venue_name}
+                                            />
+                                        </div>
+
                                         <div className="grid gap-4 sm:grid-cols-3">
                                             <div className="grid gap-2 sm:col-span-2">
                                                 <FieldLabel
-                                                    htmlFor="event-venue-name"
-                                                    error={errors.venue_name}
+                                                    htmlFor="event-city"
+                                                    error={errors.city}
                                                 >
-                                                    Venue name
+                                                    City
                                                 </FieldLabel>
                                                 <Input
-                                                    id="event-venue-name"
-                                                    name="venue_name"
-                                                    placeholder="Casino Marina"
-                                                    aria-invalid={
-                                                        !!errors.venue_name
+                                                    id="event-city"
+                                                    name="city"
+                                                    placeholder="Harare"
+                                                    value={city}
+                                                    onChange={(e) =>
+                                                        setCity(e.target.value)
                                                     }
+                                                    aria-invalid={!!errors.city}
                                                 />
                                             </div>
 
@@ -444,6 +569,7 @@ export default function CreateEventModal({
                                                     name="capacity"
                                                     type="number"
                                                     min={1}
+                                                    max={500000}
                                                     placeholder="Unlimited"
                                                     aria-invalid={
                                                         !!errors.capacity
@@ -454,21 +580,6 @@ export default function CreateEventModal({
 
                                         <div className="grid gap-4 sm:grid-cols-3">
                                             <div className="grid gap-2 sm:col-span-2">
-                                                <FieldLabel
-                                                    htmlFor="event-city"
-                                                    error={errors.city}
-                                                >
-                                                    City
-                                                </FieldLabel>
-                                                <Input
-                                                    id="event-city"
-                                                    name="city"
-                                                    placeholder="Harare"
-                                                    aria-invalid={!!errors.city}
-                                                />
-                                            </div>
-
-                                            <div className="grid gap-2">
                                                 <FieldLabel
                                                     htmlFor="event-country"
                                                     error={errors.country_code}
@@ -481,6 +592,12 @@ export default function CreateEventModal({
                                                     maxLength={2}
                                                     placeholder="ZW"
                                                     className="uppercase"
+                                                    value={countryCode}
+                                                    onChange={(e) =>
+                                                        setCountryCode(
+                                                            e.target.value.toUpperCase(),
+                                                        )
+                                                    }
                                                     aria-invalid={
                                                         !!errors.country_code
                                                     }

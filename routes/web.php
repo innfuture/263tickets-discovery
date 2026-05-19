@@ -20,12 +20,17 @@ Route::prefix('{current_team}')
         Route::patch('events/{event:slug}/seo', [EventController::class, 'updateSeo'])->name('events.seo.update');
         Route::post('events/{event:slug}/media', [EventController::class, 'storeMedia'])->name('events.media.store');
         Route::delete('events/{event:slug}/media/{media}', [EventController::class, 'destroyMedia'])->name('events.media.destroy');
+        Route::post('events/{event:slug}/lineup/photo', [EventController::class, 'storeLineupPhoto'])->name('events.lineup.photo');
         Route::get('events/{event:slug}', [EventController::class, 'show'])->name('events.show');
     });
 
 Route::middleware(['auth'])->group(function () {
     Route::get('invitations/{invitation}/accept', [TeamInvitationController::class, 'accept'])->name('invitations.accept');
 });
+
+Route::middleware(['auth', ValidateSessionWithWorkOS::class])
+    ->get('geocode/search', [EventController::class, 'geocodeSearch'])
+    ->name('geocode.search');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

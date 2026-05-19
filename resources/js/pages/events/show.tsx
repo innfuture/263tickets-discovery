@@ -18,11 +18,16 @@ import {
 import { AddToCalendarButton } from '@/components/add-to-calendar-button';
 import { CountdownTimer } from '@/components/countdown-timer';
 import { EventAgendaSection } from '@/components/event-agenda-section';
+import type { AgendaEntry } from '@/components/event-agenda-section';
 import { EventHighlightsSection } from '@/components/event-highlights-section';
 import { EventLineupSection } from '@/components/event-lineup-section';
+import type { LineupArtist } from '@/components/event-lineup-section';
 import { EventMediaCarousel } from '@/components/event-media-carousel';
+import type { MediaItem } from '@/components/event-media-carousel';
 import { EventSeoModal } from '@/components/event-seo-modal';
+import type { EventSeo } from '@/components/event-seo-modal';
 import { EventWeatherPanel } from '@/components/event-weather-panel';
+import type { WeatherForecast } from '@/components/event-weather-panel';
 import { RichTextContent } from '@/components/rich-text-content';
 import { ShareMenu } from '@/components/share-menu';
 import { Badge } from '@/components/ui/badge';
@@ -75,14 +80,15 @@ type EventDetail = {
     contact_email: string | null;
     contact_phone: string | null;
     category: { id: number; name: string; slug: string } | null;
-    seo: import('@/components/event-seo-modal').EventSeo;
-    lineup: import('@/components/event-lineup-section').LineupArtist[];
-    agenda: import('@/components/event-agenda-section').AgendaEntry[];
-    media: import('@/components/event-media-carousel').MediaItem[];
+    seo: EventSeo;
+    lineup: LineupArtist[];
+    agenda: AgendaEntry[];
+    media: MediaItem[];
 };
 
 type Props = {
     event: EventDetail;
+    weather: WeatherForecast[] | null;
 };
 
 function statusVariant(
@@ -308,7 +314,7 @@ function BannerBox({
     );
 }
 
-export default function EventShow({ event }: Props) {
+export default function EventShow({ event, weather }: Props) {
     const page = usePage<{ currentTeam?: { slug: string } | null }>();
     const teamSlug = page.props.currentTeam?.slug ?? '';
     const eventsUrl = `/${teamSlug}/events`;
@@ -335,7 +341,57 @@ export default function EventShow({ event }: Props) {
 
     return (
         <>
-            <Head title={event.name} />
+            <Head title={event.seo.meta_title ?? event.name}>
+                {event.seo.meta_description ? (
+                    <meta
+                        name="description"
+                        content={event.seo.meta_description}
+                    />
+                ) : null}
+                {event.seo.canonical_url ? (
+                    <link rel="canonical" href={event.seo.canonical_url} />
+                ) : null}
+                <meta
+                    property="og:title"
+                    content={
+                        event.seo.og_title ?? event.seo.meta_title ?? event.name
+                    }
+                />
+                {(event.seo.og_description ?? event.seo.meta_description) ? (
+                    <meta
+                        property="og:description"
+                        content={
+                            event.seo.og_description ??
+                            event.seo.meta_description ??
+                            ''
+                        }
+                    />
+                ) : null}
+                {event.banner_image_url || event.seo.og_image_path ? (
+                    <meta
+                        property="og:image"
+                        content={
+                            event.seo.og_image_path ??
+                            event.banner_image_url ??
+                            ''
+                        }
+                    />
+                ) : null}
+                <meta property="og:type" content="event" />
+                {publicUrl ? (
+                    <meta property="og:url" content={publicUrl} />
+                ) : null}
+                <meta
+                    name="twitter:card"
+                    content={event.seo.twitter_card ?? 'summary_large_image'}
+                />
+                {event.seo.twitter_creator ? (
+                    <meta
+                        name="twitter:creator"
+                        content={event.seo.twitter_creator}
+                    />
+                ) : null}
+            </Head>
 
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Two-column layout: 8/4 */}
@@ -843,13 +899,7 @@ export default function EventShow({ event }: Props) {
                             </CardContent>
                         </Card>
 
-                        <EventWeatherPanel
-                            lat={event.latitude}
-                            lng={event.longitude}
-                            startsAtIso={event.starts_at}
-                            endsAtIso={event.ends_at}
-                            timezone={event.timezone}
-                        />
+                        <EventWeatherPanel forecasts={weather} />
                     </aside>
                 </div>
             </div>

@@ -10,6 +10,8 @@
 
 @import "@fontsource-variable/inter";
 
+@import "@fontsource-variable/roboto";
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
@@ -95,9 +97,9 @@
     --muted-foreground:
         oklch(0.556 0 0);
     --accent:
-        oklch(0.205 0 0);
+        oklch(0.97 0 0);
     --accent-foreground:
-        oklch(0.985 0 0);
+        oklch(0.205 0 0);
     --destructive:
         oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(0.577 0.245 27.325);
@@ -118,7 +120,7 @@
     --chart-5:
         oklch(0.269 0 0);
     --radius:
-        0.625rem;
+        0;
     --sidebar:
         oklch(0.985 0 0);
     --sidebar-foreground:
@@ -163,9 +165,9 @@
     --muted-foreground:
         oklch(0.708 0 0);
     --accent:
-        oklch(0.922 0 0);
+        oklch(0.269 0 0);
     --accent-foreground:
-        oklch(0.205 0 0);
+        oklch(0.985 0 0);
     --destructive:
         oklch(0.704 0.191 22.216);
     --destructive-foreground: oklch(0.637 0.237 25.331);
@@ -294,7 +296,7 @@
     --color-sidebar-ring:
         var(--sidebar-ring);
     --font-sans:
-        'Noto Sans Variable', sans-serif;
+        'Roboto Variable', sans-serif;
     --font-heading:
         var(--font-sans);
 }

@@ -1,5 +1,24 @@
+import {
+    closestCenter,
+    DndContext,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { usePage } from '@inertiajs/react';
 import { GripVertical, Plus, Star, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { LineupPhotoUploader } from '@/components/lineup-photo-uploader';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -8,7 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 export type LineupDraft = {
-    key: string; // local key for React list
+    key: string;
     id: number | null;
     name: string;
     role: string;
@@ -32,8 +51,10 @@ function newDraft(): LineupDraft {
 }
 
 export function EventLineupManager({
+    eventSlug,
     initial,
 }: {
+    eventSlug: string;
     initial: Array<{
         id: number;
         name: string;
@@ -44,6 +65,10 @@ export function EventLineupManager({
         is_headliner: boolean;
     }>;
 }) {
+    const page = usePage<{ currentTeam?: { slug: string } | null }>();
+    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const photoUploadUrl = `/${teamSlug}/events/${eventSlug}/lineup/photo`;
+
     const [artists, setArtists] = useState<LineupDraft[]>(
         initial.map((a) => ({
             key: `existing-${a.id}`,
@@ -57,9 +82,18 @@ export function EventLineupManager({
         })),
     );
 
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+
     const add = () => setArtists((prev) => [...prev, newDraft()]);
+
     const remove = (key: string) =>
         setArtists((prev) => prev.filter((a) => a.key !== key));
+
     const update = <K extends keyof LineupDraft>(
         key: string,
         field: K,
@@ -68,6 +102,25 @@ export function EventLineupManager({
         setArtists((prev) =>
             prev.map((a) => (a.key === key ? { ...a, [field]: value } : a)),
         );
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) {
+            return;
+        }
+
+        setArtists((prev) => {
+            const oldIndex = prev.findIndex((a) => a.key === active.id);
+            const newIndex = prev.findIndex((a) => a.key === over.id);
+
+            if (oldIndex < 0 || newIndex < 0) {
+                return prev;
+            }
+
+            return arrayMove(prev, oldIndex, newIndex);
+        });
     };
 
     return (
@@ -79,157 +132,29 @@ export function EventLineupManager({
                 </p>
             ) : null}
 
-            {artists.map((artist, i) => (
-                <div
-                    key={artist.key}
-                    className={cn(
-                        'space-y-3 rounded-md border bg-muted/20 p-4',
-                        artist.is_headliner && 'ring-1 ring-yellow-400/40',
-                    )}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+            >
+                <SortableContext
+                    items={artists.map((a) => a.key)}
+                    strategy={verticalListSortingStrategy}
                 >
-                    {artist.id ? (
-                        <input
-                            type="hidden"
-                            name={`lineup[${i}][id]`}
-                            value={artist.id}
+                    {artists.map((artist, i) => (
+                        <SortableArtistRow
+                            key={artist.key}
+                            artist={artist}
+                            index={i}
+                            photoUploadUrl={photoUploadUrl}
+                            onUpdate={(field, value) =>
+                                update(artist.key, field, value)
+                            }
+                            onRemove={() => remove(artist.key)}
                         />
-                    ) : null}
-
-                    <div className="flex items-start gap-2">
-                        <GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground" />
-                        <div className="flex-1 space-y-3">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="grid gap-1.5">
-                                    <Label className="text-xs">Name</Label>
-                                    <Input
-                                        name={`lineup[${i}][name]`}
-                                        value={artist.name}
-                                        onChange={(e) =>
-                                            update(
-                                                artist.key,
-                                                'name',
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="Jane Doe"
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label className="text-xs">
-                                        Role / billing
-                                    </Label>
-                                    <Input
-                                        name={`lineup[${i}][role]`}
-                                        value={artist.role}
-                                        onChange={(e) =>
-                                            update(
-                                                artist.key,
-                                                'role',
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="DJ · Speaker · Guest"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid gap-1.5">
-                                <Label className="text-xs">Bio</Label>
-                                <Textarea
-                                    name={`lineup[${i}][bio]`}
-                                    value={artist.bio}
-                                    onChange={(e) =>
-                                        update(
-                                            artist.key,
-                                            'bio',
-                                            e.target.value,
-                                        )
-                                    }
-                                    placeholder="A short bio shown to attendees"
-                                    rows={2}
-                                />
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="grid gap-1.5">
-                                    <Label className="text-xs">
-                                        Photo URL / path
-                                    </Label>
-                                    <Input
-                                        name={`lineup[${i}][image_path]`}
-                                        value={artist.image_path}
-                                        onChange={(e) =>
-                                            update(
-                                                artist.key,
-                                                'image_path',
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label className="text-xs">
-                                        Social / profile URL
-                                    </Label>
-                                    <Input
-                                        name={`lineup[${i}][social_url]`}
-                                        value={artist.social_url}
-                                        onChange={(e) =>
-                                            update(
-                                                artist.key,
-                                                'social_url',
-                                                e.target.value,
-                                            )
-                                        }
-                                        type="url"
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id={`lineup-${artist.key}-headliner`}
-                                        checked={artist.is_headliner}
-                                        onCheckedChange={(v) =>
-                                            update(
-                                                artist.key,
-                                                'is_headliner',
-                                                v === true,
-                                            )
-                                        }
-                                    />
-                                    <input
-                                        type="hidden"
-                                        name={`lineup[${i}][is_headliner]`}
-                                        value={artist.is_headliner ? '1' : '0'}
-                                    />
-                                    <Label
-                                        htmlFor={`lineup-${artist.key}-headliner`}
-                                        className="flex items-center gap-1 font-normal"
-                                    >
-                                        <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
-                                        Headliner
-                                    </Label>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => remove(artist.key)}
-                                    className="text-destructive hover:text-destructive"
-                                >
-                                    <Trash2 className="size-4" />
-                                    Remove
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ))}
+                    ))}
+                </SortableContext>
+            </DndContext>
 
             <Button
                 type="button"
@@ -240,6 +165,166 @@ export function EventLineupManager({
                 <Plus className="size-4" />
                 Add artist / guest
             </Button>
+        </div>
+    );
+}
+
+function SortableArtistRow({
+    artist,
+    index,
+    photoUploadUrl,
+    onUpdate,
+    onRemove,
+}: {
+    artist: LineupDraft;
+    index: number;
+    photoUploadUrl: string;
+    onUpdate: <K extends keyof LineupDraft>(
+        field: K,
+        value: LineupDraft[K],
+    ) => void;
+    onRemove: () => void;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: artist.key });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={cn(
+                'space-y-3 rounded-md border bg-muted/20 p-4',
+                artist.is_headliner && 'ring-1 ring-yellow-400/40',
+                isDragging && 'z-10 opacity-90 shadow-lg',
+            )}
+        >
+            {artist.id ? (
+                <input
+                    type="hidden"
+                    name={`lineup[${index}][id]`}
+                    value={artist.id}
+                />
+            ) : null}
+
+            <div className="flex items-start gap-2">
+                <button
+                    type="button"
+                    {...attributes}
+                    {...listeners}
+                    aria-label="Drag to reorder"
+                    className="mt-2 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+                >
+                    <GripVertical className="size-4" />
+                </button>
+
+                <div className="flex-1 space-y-3">
+                    <LineupPhotoUploader
+                        uploadUrl={photoUploadUrl}
+                        value={artist.image_path}
+                        onChange={(path) => onUpdate('image_path', path)}
+                    />
+                    <input
+                        type="hidden"
+                        name={`lineup[${index}][image_path]`}
+                        value={artist.image_path}
+                    />
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-1.5">
+                            <Label className="text-xs">Name</Label>
+                            <Input
+                                name={`lineup[${index}][name]`}
+                                value={artist.name}
+                                onChange={(e) =>
+                                    onUpdate('name', e.target.value)
+                                }
+                                placeholder="Jane Doe"
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label className="text-xs">Role / billing</Label>
+                            <Input
+                                name={`lineup[${index}][role]`}
+                                value={artist.role}
+                                onChange={(e) =>
+                                    onUpdate('role', e.target.value)
+                                }
+                                placeholder="DJ · Speaker · Guest"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs">Bio</Label>
+                        <Textarea
+                            name={`lineup[${index}][bio]`}
+                            value={artist.bio}
+                            onChange={(e) => onUpdate('bio', e.target.value)}
+                            rows={2}
+                            placeholder="A short bio shown to attendees"
+                        />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs">Social / profile URL</Label>
+                        <Input
+                            name={`lineup[${index}][social_url]`}
+                            value={artist.social_url}
+                            onChange={(e) =>
+                                onUpdate('social_url', e.target.value)
+                            }
+                            type="url"
+                            placeholder="https://..."
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id={`lineup-${artist.key}-headliner`}
+                                checked={artist.is_headliner}
+                                onCheckedChange={(v) =>
+                                    onUpdate('is_headliner', v === true)
+                                }
+                            />
+                            <input
+                                type="hidden"
+                                name={`lineup[${index}][is_headliner]`}
+                                value={artist.is_headliner ? '1' : '0'}
+                            />
+                            <Label
+                                htmlFor={`lineup-${artist.key}-headliner`}
+                                className="flex items-center gap-1 font-normal"
+                            >
+                                <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
+                                Headliner
+                            </Label>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={onRemove}
+                            className="text-destructive hover:text-destructive"
+                        >
+                            <Trash2 className="size-4" />
+                            Remove
+                        </Button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

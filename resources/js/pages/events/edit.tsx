@@ -1030,16 +1030,17 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
 
                                     <Section
                                         title="Lineup"
-                                        description="Special guests, performers, or speakers. Mark prominent names as headliners."
+                                        description="Special guests, performers, or speakers. Mark prominent names as headliners. Drag the handle to reorder."
                                     >
                                         <EventLineupManager
+                                            eventSlug={event.slug}
                                             initial={event.lineup}
                                         />
                                     </Section>
 
                                     <Section
                                         title="Agenda"
-                                        description="Build a schedule with timestamps, descriptions, and hosts."
+                                        description="Build a schedule with timestamps, descriptions, and hosts. Drag the handle to reorder."
                                     >
                                         <EventAgendaManager
                                             initial={event.agenda}
