@@ -1,14 +1,18 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
+    BookText,
     CalendarDays,
     Clock,
+    FileText,
     Globe2,
+    Info,
     Mail,
     MapPin,
     Pencil,
     Phone,
     Settings2,
+    ShieldCheck,
     Star,
     Tag,
     Ticket,
@@ -17,8 +21,12 @@ import {
 } from 'lucide-react';
 import { AddToCalendarButton } from '@/components/add-to-calendar-button';
 import { CountdownTimer } from '@/components/countdown-timer';
+import { EventAdManagementPanel } from '@/components/event-ad-management-panel';
 import { EventAgendaSection } from '@/components/event-agenda-section';
 import type { AgendaEntry } from '@/components/event-agenda-section';
+import { EventAmenitiesSection } from '@/components/event-amenities-section';
+import type { AmenityView } from '@/components/event-amenities-section';
+import { EventAnalyticsDashboard } from '@/components/event-analytics-dashboard';
 import { EventHighlightsSection } from '@/components/event-highlights-section';
 import { EventLineupSection } from '@/components/event-lineup-section';
 import type { LineupArtist } from '@/components/event-lineup-section';
@@ -26,6 +34,9 @@ import { EventMediaCarousel } from '@/components/event-media-carousel';
 import type { MediaItem } from '@/components/event-media-carousel';
 import { EventSeoModal } from '@/components/event-seo-modal';
 import type { EventSeo } from '@/components/event-seo-modal';
+import { EventSponsorsSection } from '@/components/event-sponsors-section';
+import type { SponsorView } from '@/components/event-sponsors-section';
+import { EventTicketManager } from '@/components/event-ticket-manager';
 import { EventWeatherPanel } from '@/components/event-weather-panel';
 import type { WeatherForecast } from '@/components/event-weather-panel';
 import { RichTextContent } from '@/components/rich-text-content';
@@ -34,6 +45,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SectionTitle } from '@/components/ui/section-title';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VenueMap } from '@/components/venue-map';
 import { cn } from '@/lib/utils';
@@ -84,6 +97,40 @@ type EventDetail = {
     lineup: LineupArtist[];
     agenda: AgendaEntry[];
     media: MediaItem[];
+    sponsors: SponsorView[];
+    amenities: AmenityView[];
+    ticket_categories: TicketCategory[];
+    ad_campaigns: AdCampaign[];
+};
+
+type TicketCategory = {
+    id: number;
+    uuid: string;
+    name: string;
+    description: string | null;
+    offline_quantity: number;
+    online_quantity: number;
+    generation_status: 'pending' | 'processing' | 'completed' | 'failed' | null;
+    generation_progress: number | null;
+    sale_status: { value: string; label: string };
+    admission_type: { value: string; label: string } | null;
+    pass_type: { value: string; label: string } | null;
+    currency: string;
+    sort_order: number;
+};
+
+type AdCampaign = {
+    id: number;
+    uuid: string;
+    name: string;
+    platform: { value: string; label: string };
+    campaign_status: { value: string; label: string };
+    budget_daily: number | null;
+    budget_total: number | null;
+    budget_currency: string;
+    runs_from: string | null;
+    runs_until: string | null;
+    metrics: Record<string, unknown> | null;
 };
 
 type Props = {
@@ -455,6 +502,11 @@ export default function EventShow({ event, weather }: Props) {
 
                         <EventHighlightsSection event={event} />
 
+                        <EventAmenitiesSection
+                            amenities={event.amenities}
+                            canEdit
+                        />
+
                         <Tabs defaultValue="about" className="gap-4">
                             <TabsList>
                                 <TabsTrigger value="about">About</TabsTrigger>
@@ -471,6 +523,9 @@ export default function EventShow({ event, weather }: Props) {
                                 <TabsTrigger value="venue">
                                     {event.is_online ? 'Online' : 'Venue'}
                                 </TabsTrigger>
+                                <TabsTrigger value="tickets">
+                                    Tickets
+                                </TabsTrigger>
                                 <TabsTrigger value="policies">
                                     Policies
                                 </TabsTrigger>
@@ -479,9 +534,11 @@ export default function EventShow({ event, weather }: Props) {
                             <TabsContent value="about" className="mt-0">
                                 <Card>
                                     <CardHeader>
-                                        <h2 className="font-semibold">
+                                        <SectionTitle
+                                            icon={<BookText className="size-4" />}
+                                        >
                                             About this event
-                                        </h2>
+                                        </SectionTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         {event.description ? (
@@ -489,9 +546,12 @@ export default function EventShow({ event, weather }: Props) {
                                                 html={event.description}
                                             />
                                         ) : (
-                                            <p className="text-sm text-muted-foreground italic">
-                                                No description yet.
-                                            </p>
+                                            <EmptyState
+                                                tone="muted"
+                                                icon={<BookText className="size-6" />}
+                                                title="No description yet"
+                                                description="Add a longer description to give attendees the full pitch."
+                                            />
                                         )}
 
                                         {event.tags && event.tags.length > 0 ? (
@@ -535,11 +595,19 @@ export default function EventShow({ event, weather }: Props) {
                             <TabsContent value="venue" className="mt-0">
                                 <Card>
                                     <CardHeader>
-                                        <h2 className="font-semibold">
+                                        <SectionTitle
+                                            icon={
+                                                event.is_online ? (
+                                                    <Globe2 className="size-4" />
+                                                ) : (
+                                                    <MapPin className="size-4" />
+                                                )
+                                            }
+                                        >
                                             {event.is_online
                                                 ? 'How to join'
                                                 : 'Where it happens'}
-                                        </h2>
+                                        </SectionTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         {event.is_online ? (
@@ -613,9 +681,13 @@ export default function EventShow({ event, weather }: Props) {
                                 {event.minimum_age ? (
                                     <Card>
                                         <CardHeader>
-                                            <h2 className="font-semibold">
+                                            <SectionTitle
+                                                icon={
+                                                    <ShieldCheck className="size-4" />
+                                                }
+                                            >
                                                 Age requirement
-                                            </h2>
+                                            </SectionTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <p className="text-sm">
@@ -633,9 +705,11 @@ export default function EventShow({ event, weather }: Props) {
                                 {event.refund_policy ? (
                                     <Card>
                                         <CardHeader>
-                                            <h2 className="font-semibold">
+                                            <SectionTitle
+                                                icon={<Info className="size-4" />}
+                                            >
                                                 Refund policy
-                                            </h2>
+                                            </SectionTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3 text-sm leading-relaxed whitespace-pre-line">
                                             {event.refund_policy}
@@ -646,9 +720,13 @@ export default function EventShow({ event, weather }: Props) {
                                 {event.terms ? (
                                     <Card>
                                         <CardHeader>
-                                            <h2 className="font-semibold">
+                                            <SectionTitle
+                                                icon={
+                                                    <FileText className="size-4" />
+                                                }
+                                            >
                                                 Terms
-                                            </h2>
+                                            </SectionTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3 text-sm leading-relaxed whitespace-pre-line">
                                             {event.terms}
@@ -660,14 +738,33 @@ export default function EventShow({ event, weather }: Props) {
                                 !event.refund_policy &&
                                 !event.terms ? (
                                     <Card>
-                                        <CardContent className="py-8 text-center text-sm text-muted-foreground italic">
-                                            No policies have been set for this
-                                            event.
+                                        <CardContent className="px-4 py-4">
+                                            <EmptyState
+                                                tone="muted"
+                                                icon={
+                                                    <FileText className="size-6" />
+                                                }
+                                                title="No policies yet"
+                                                description="Add a refund policy or terms so attendees know what to expect."
+                                            />
                                         </CardContent>
                                     </Card>
                                 ) : null}
                             </TabsContent>
+
+                            <TabsContent value="tickets" className="mt-0">
+                                <EventTicketManager
+                                    categories={event.ticket_categories}
+                                    teamSlug={teamSlug}
+                                    eventSlug={event.slug}
+                                />
+                            </TabsContent>
                         </Tabs>
+
+                        <EventSponsorsSection
+                            sponsors={event.sponsors}
+                            canEdit
+                        />
                     </div>
 
                     {/* Sticky sidebar (col-span-4) */}
@@ -697,6 +794,8 @@ export default function EventShow({ event, weather }: Props) {
                                 seo={event.seo}
                                 eventName={event.name}
                                 eventDescription={event.description}
+                                eventShortDescription={event.short_description}
+                                eventBannerUrl={event.banner_image_url}
                                 eventSlug={event.slug}
                             >
                                 <Button variant="outline" size="sm">
@@ -900,6 +999,19 @@ export default function EventShow({ event, weather }: Props) {
                         </Card>
 
                         <EventWeatherPanel forecasts={weather} />
+
+                        <EventAnalyticsDashboard
+                            teamSlug={teamSlug}
+                            eventSlug={event.slug}
+                        />
+
+                        <EventAdManagementPanel
+                            campaigns={event.ad_campaigns}
+                            teamSlug={teamSlug}
+                            eventSlug={event.slug}
+                            eventName={event.name}
+                            eventUrl={publicUrl}
+                        />
                     </aside>
                 </div>
             </div>

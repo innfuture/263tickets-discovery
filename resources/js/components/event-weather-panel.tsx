@@ -10,7 +10,9 @@ import {
     Wind,
     Zap,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SectionTitle } from '@/components/ui/section-title';
 
 export type WeatherForecast = {
     date: string;
@@ -88,14 +90,18 @@ export function EventWeatherPanel({
     if (forecasts.length === 0) {
         return (
             <Card>
-                <CardContent className="space-y-2 px-6">
-                    <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        <Thermometer className="size-4" />
+                <CardHeader>
+                    <SectionTitle icon={<Thermometer className="size-4" />}>
                         Weather forecast
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        No forecast data available for the event dates.
-                    </p>
+                    </SectionTitle>
+                </CardHeader>
+                <CardContent>
+                    <EmptyState
+                        tone="muted"
+                        icon={<Thermometer className="size-6" />}
+                        title="No forecast available"
+                        description="We couldn't load a forecast for the event dates."
+                    />
                 </CardContent>
             </Card>
         );
@@ -103,15 +109,18 @@ export function EventWeatherPanel({
 
     return (
         <Card>
-            <CardContent className="space-y-3 px-6">
-                <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    <Thermometer className="size-4" />
+            <CardHeader>
+                <SectionTitle icon={<Thermometer className="size-4" />}>
                     Weather forecast
-                </div>
-
+                </SectionTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
                 <div className="space-y-3">
                     {forecasts.map((f) => (
-                        <div key={f.date} className="flex items-center gap-3">
+                        <div
+                            key={f.date}
+                            className="flex items-center gap-3 rounded-md p-1.5 transition hover:bg-muted/40"
+                        >
                             {iconForCode(f.code)}
                             <div className="min-w-0 flex-1">
                                 <div className="text-sm font-medium">

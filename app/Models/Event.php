@@ -8,6 +8,8 @@ use App\Exceptions\InvalidEventStatusTransition;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\AdCampaign;
+use App\Models\TicketCategory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -58,6 +60,15 @@ use Illuminate\Support\Str;
     'terms',
     'contact_email',
     'contact_phone',
+    'seo_keywords',
+    'robots_directive',
+    'og_type',
+    'og_locale',
+    'og_site_name',
+    'twitter_title',
+    'twitter_description',
+    'twitter_image',
+    'schema_markup',
 ])]
 class Event extends Model
 {
@@ -132,6 +143,7 @@ class Event extends Model
             'minimum_age' => 'integer',
             'tickets_sold_count' => 'integer',
             'views_count' => 'integer',
+            'schema_markup' => 'array',
         ];
     }
 
@@ -187,6 +199,68 @@ class Event extends Model
         return $this->hasMany(EventMediaItem::class)
             ->orderByDesc('is_primary')
             ->orderBy('sort_order');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<TicketCategory, $this>
+     */
+    public function ticketCategories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TicketCategory::class)
+            ->orderBy('sort_order');
+    }
+
+    /**
+     * Sponsors backing the event, ordered by tier prominence then sort_order.
+     * Tier rank is applied in PHP after fetch (see EventController payload).
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventSponsor, $this>
+     */
+    public function sponsors(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(EventSponsor::class)
+            ->orderBy('sort_order');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventAmenity, $this>
+     */
+    public function amenities(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(EventAmenity::class)
+            ->orderByDesc('is_highlighted')
+            ->orderBy('sort_order');
+    }
+
+    /**
+     * Event-scoped ad campaigns. Uses the dedicated `event_id` FK (kept for
+     * legacy queries). New code on other resources should use the polymorphic
+     * `morphMany(AdCampaign::class, 'owner')` instead.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<AdCampaign, $this>
+     */
+    public function adCampaigns(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AdCampaign::class);
+    }
+
+    /**
+     * Polymorphic accessor for ad campaigns. Equivalent to `adCampaigns()` for
+     * events but available to any model via the polymorphic owner columns.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany<AdCampaign, $this>
+     */
+    public function ownedAdCampaigns(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(AdCampaign::class, 'owner');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\EventPageView, $this>
+     */
+    public function pageViews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\EventPageView::class);
     }
 
     public function transitionTo(EventStatus $to): self

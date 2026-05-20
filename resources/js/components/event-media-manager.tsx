@@ -67,11 +67,11 @@ export function EventMediaManager({
                     </TabsList>
 
                     <TabsContent value="image" className="mt-0">
-                        <ImageUploadForm uploadUrl={uploadUrl} />
+                        <ImageUploadBlock uploadUrl={uploadUrl} />
                     </TabsContent>
 
                     <TabsContent value="video" className="mt-0">
-                        <VideoUrlForm uploadUrl={uploadUrl} />
+                        <VideoUrlBlock uploadUrl={uploadUrl} />
                     </TabsContent>
                 </Tabs>
             </div>
@@ -139,22 +139,28 @@ function MediaTile({
     );
 }
 
-function ImageUploadForm({ uploadUrl }: { uploadUrl: string }) {
-    const formRef = useRef<HTMLFormElement>(null);
+/**
+ * Uses a <div> root (not <form>) so this can render inside the parent edit page's
+ * <Form>. Nesting <form> elements is invalid HTML — browsers silently close the
+ * outer form, dropping submit buttons placed after it.
+ */
+function ImageUploadBlock({ uploadUrl }: { uploadUrl: string }) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [caption, setCaption] = useState('');
     const [clientError, setClientError] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const reset = () => {
+        setCaption('');
+        setClientError(null);
 
-        if (!formRef.current) {
-            return;
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
+    };
 
-        const fileInput = formRef.current.querySelector<HTMLInputElement>(
-            'input[name="image"]',
-        );
+    const submit = () => {
+        const fileInput = fileInputRef.current;
 
         if (!fileInput?.files || fileInput.files.length === 0) {
             setClientError('Please choose an image to upload.');
@@ -162,31 +168,25 @@ function ImageUploadForm({ uploadUrl }: { uploadUrl: string }) {
             return;
         }
 
-        const formData = new FormData(formRef.current);
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+        formData.append('caption', caption);
+
         setUploading(true);
         router.post(uploadUrl, formData, {
             forceFormData: true,
             preserveScroll: true,
             onFinish: () => {
                 setUploading(false);
-                setCaption('');
-                setClientError(null);
-
-                if (formRef.current) {
-                    formRef.current.reset();
-                }
+                reset();
             },
         });
     };
 
     return (
-        <form
-            ref={formRef}
-            onSubmit={handleSubmit}
-            className="space-y-3"
-            encType="multipart/form-data"
-        >
+        <div className="space-y-3">
             <ImageDropzone
+                ref={fileInputRef}
                 name="image"
                 hasError={!!clientError}
                 onValidationError={setClientError}
@@ -198,29 +198,31 @@ function ImageUploadForm({ uploadUrl }: { uploadUrl: string }) {
                 </Label>
                 <Input
                     id="media-caption"
-                    name="caption"
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)}
                     maxLength={280}
                 />
             </div>
 
-            <Button type="submit" size="sm" disabled={uploading}>
+            <Button
+                type="button"
+                size="sm"
+                disabled={uploading}
+                onClick={submit}
+            >
                 <ImagePlus className="size-4" />
                 {uploading ? 'Uploading...' : 'Upload image'}
             </Button>
-        </form>
+        </div>
     );
 }
 
-function VideoUrlForm({ uploadUrl }: { uploadUrl: string }) {
+function VideoUrlBlock({ uploadUrl }: { uploadUrl: string }) {
     const [videoUrl, setVideoUrl] = useState('');
     const [caption, setCaption] = useState('');
     const [saving, setSaving] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
+    const submit = () => {
         if (!videoUrl.trim()) {
             return;
         }
@@ -241,7 +243,7 @@ function VideoUrlForm({ uploadUrl }: { uploadUrl: string }) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="space-y-3">
             <div className="grid gap-1.5">
                 <Label htmlFor="video-url" className="text-xs">
                     YouTube or Vimeo URL
@@ -270,10 +272,15 @@ function VideoUrlForm({ uploadUrl }: { uploadUrl: string }) {
                 />
             </div>
 
-            <Button type="submit" size="sm" disabled={saving || !videoUrl}>
+            <Button
+                type="button"
+                size="sm"
+                disabled={saving || !videoUrl}
+                onClick={submit}
+            >
                 <Video className="size-4" />
                 {saving ? 'Adding...' : 'Add video'}
             </Button>
-        </form>
+        </div>
     );
 }

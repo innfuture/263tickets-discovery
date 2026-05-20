@@ -1,5 +1,11 @@
 import { Upload, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import {
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -20,16 +26,25 @@ function humanSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function ImageDropzone({
-    name = 'banner_image',
-    hasError = false,
-    onValidationError,
-}: {
+type ImageDropzoneProps = {
     name?: string;
     hasError?: boolean;
     onValidationError?: (message: string | null) => void;
-}) {
+    inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+};
+
+const ImageDropzone = forwardRef<HTMLInputElement, ImageDropzoneProps>(
+    function ImageDropzone(
+        {
+            name = 'banner_image',
+            hasError = false,
+            onValidationError,
+            inputProps,
+        },
+        ref,
+    ) {
     const inputRef = useRef<HTMLInputElement>(null);
+    useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -104,6 +119,7 @@ export default function ImageDropzone({
                 className="sr-only"
                 onChange={(e) => setFromFiles(e.target.files)}
                 aria-label="Banner image upload"
+                {...inputProps}
             />
 
             {file && preview ? (
@@ -178,4 +194,7 @@ export default function ImageDropzone({
             )}
         </div>
     );
-}
+    },
+);
+
+export default ImageDropzone;

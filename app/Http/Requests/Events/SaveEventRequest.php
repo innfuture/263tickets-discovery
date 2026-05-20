@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Events;
 
 use App\Enums\EventVisibility;
+use App\Enums\SponsorTier;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -72,6 +73,25 @@ class SaveEventRequest extends FormRequest
             'agenda.*.description' => ['nullable', 'string', 'max:2000'],
             'agenda.*.host_name' => ['nullable', 'string', 'max:120'],
             'agenda.*.host_role' => ['nullable', 'string', 'max:40'],
+
+            // Nested: sponsors
+            'sponsors' => ['nullable', 'array'],
+            'sponsors.*.id' => ['nullable', 'integer'],
+            'sponsors.*.name' => ['required_with:sponsors', 'string', 'max:160'],
+            'sponsors.*.tier' => ['required_with:sponsors', Rule::enum(SponsorTier::class)],
+            'sponsors.*.logo_path' => ['nullable', 'string', 'max:2048'],
+            'sponsors.*.website_url' => ['nullable', 'url', 'max:2048'],
+            'sponsors.*.social_url' => ['nullable', 'url', 'max:2048'],
+            'sponsors.*.description' => ['nullable', 'string', 'max:280'],
+
+            // Nested: amenities
+            'amenities' => ['nullable', 'array'],
+            'amenities.*.id' => ['nullable', 'integer'],
+            'amenities.*.name' => ['required_with:amenities', 'string', 'max:80'],
+            'amenities.*.icon' => ['nullable', 'string', 'max:40'],
+            'amenities.*.description' => ['nullable', 'string', 'max:280'],
+            'amenities.*.category' => ['nullable', 'string', 'max:40'],
+            'amenities.*.is_highlighted' => ['nullable', 'boolean'],
         ];
     }
 

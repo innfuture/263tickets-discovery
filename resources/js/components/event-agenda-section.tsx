@@ -1,6 +1,7 @@
 import { Calendar, Clock, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { SectionTitle } from '@/components/ui/section-title';
 
 export type AgendaEntry = {
     id: number;
@@ -68,10 +69,12 @@ export function EventAgendaSection({
     return (
         <Card className="animate-in duration-500 fade-in slide-in-from-bottom-2">
             <CardHeader>
-                <h2 className="flex items-center gap-2 font-semibold">
-                    <Calendar className="size-4" />
+                <SectionTitle
+                    icon={<Calendar className="size-4" />}
+                    count={entries.length}
+                >
                     Agenda
-                </h2>
+                </SectionTitle>
             </CardHeader>
             <CardContent className="space-y-6">
                 {days.map((day) => {
@@ -89,7 +92,7 @@ export function EventAgendaSection({
                                         key={entry.id}
                                         className="relative space-y-1.5"
                                     >
-                                        <div className="absolute top-1.5 -left-[1.4rem] size-3 rounded-full border-2 border-background bg-primary" />
+                                        <div className="absolute top-1.5 left-[-1.4rem] size-3 rounded-full border-2 border-background bg-primary" />
                                         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                                             <Clock className="size-3" />
                                             {formatTime(

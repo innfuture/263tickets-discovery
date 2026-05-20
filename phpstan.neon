@@ -1,0 +1,44 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # Larastan level 5 is the project sweet-spot: catches real bugs (wrong
+    # method args, missing classes, undefined props on real instances)
+    # without drowning in noise from Laravel's facade magic.
+    level: 5
+
+    paths:
+        - app
+
+    # Exclude generated / vendor / legacy stubs from analysis.
+    excludePaths:
+        - app/Console/Kernel.php
+        - bootstrap/cache
+
+    # Laravel-specific quirks the analyser shouldn't worry about.
+    ignoreErrors:
+        # Inertia\Response is opaque from Larastan's view.
+        - identifier: missingType.generics
+          paths:
+              - app/Http/Controllers/*.php
+
+        # Route-binding parameter injection (e.g. controller methods with
+        # multiple resolved deps) isn't matched against route definitions.
+        - '#^Method .*Controller::[a-zA-Z]+\(\) has parameter \$.+ with no type specified.$#'
+
+        # Polymorphic owner: $owner is intentionally typed `mixed` so any
+        # model with an organisation_id can host campaigns.
+        -
+            message: '#^Parameter \#1 \$owner of method.*Ad.*Campaign.*expects.*$#'
+            paths:
+                - app/Services/AdManagementService.php
+
+    # Treat all PHPDoc generic types as best-effort. Eloquent's
+    # generics are not always inferable.
+    checkGenericClassInNonGenericObjectType: false
+
+    # Most projects want this off; static factories on Eloquent confuse it.
+    checkMissingIterableValueType: false
+
+    # Reports common Laravel false positives quieter.
+    reportUnmatchedIgnoredErrors: false

@@ -1,6 +1,7 @@
 import { ExternalLink, Mic, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { SectionTitle } from '@/components/ui/section-title';
 import { cn } from '@/lib/utils';
 
 export type LineupArtist = {
@@ -24,10 +25,12 @@ export function EventLineupSection({ artists }: { artists: LineupArtist[] }) {
     return (
         <Card className="animate-in duration-500 fade-in slide-in-from-bottom-2">
             <CardHeader>
-                <h2 className="flex items-center gap-2 font-semibold">
-                    <Mic className="size-4" />
+                <SectionTitle
+                    icon={<Mic className="size-4" />}
+                    count={artists.length}
+                >
                     Lineup
-                </h2>
+                </SectionTitle>
             </CardHeader>
             <CardContent className="space-y-6">
                 {headliners.length > 0 ? (

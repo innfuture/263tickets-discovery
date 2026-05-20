@@ -11,7 +11,15 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
+            {/*
+              Use `overflow-x-clip` (not `hidden`) so we still prevent horizontal
+              overflow without turning AppContent into a scroll container.
+              `overflow: hidden` makes the element a scroll container, which
+              hijacks `position: sticky` descendants (they bind to AppContent's
+              non-existent scroll instead of the document's), breaking sticky
+              sidebars like the one on the Event Edit page.
+            */}
+            <AppContent variant="sidebar" className="overflow-x-clip">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {children}
             </AppContent>

@@ -6,6 +6,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\Format;
 use Intervention\Image\ImageManager;
 use Throwable;
 
@@ -27,7 +28,9 @@ class ImageProcessingService
     ];
 
     private const WEBP_QUALITY = 85;
+
     private const THUMB_QUALITY = 80;
+
     private const DISK = 'public';
 
     private ImageManager $manager;
@@ -73,7 +76,7 @@ class ImageProcessingService
         // Read source once. Clone per operation so the source stays pristine.
         $source = $this->manager->decodePath($sourcePath);
 
-        $original = (string) (clone $source)->toWebp(self::WEBP_QUALITY);
+        $original = (string) (clone $source)->encodeUsingFormat(Format::WEBP, quality: self::WEBP_QUALITY);
 
         Storage::disk(self::DISK)->put($relative, $original);
 
@@ -81,7 +84,7 @@ class ImageProcessingService
             try {
                 $thumb = (string) (clone $source)
                     ->cover($width, $height)
-                    ->toWebp(self::THUMB_QUALITY);
+                    ->encodeUsingFormat(Format::WEBP, quality: self::THUMB_QUALITY);
 
                 Storage::disk(self::DISK)->put(
                     trim($directory, '/')."/thumbnails/{$name}/{$filename}",

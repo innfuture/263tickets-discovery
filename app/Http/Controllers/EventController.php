@@ -6,6 +6,7 @@ use App\Enums\EventStatus;
 use App\Enums\EventVisibility;
 use App\Http\Requests\Events\SaveEventRequest;
 use App\Http\Requests\Events\UpdateSeoRequest;
+use App\Enums\SponsorTier;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\EventMediaItem;
@@ -123,6 +124,12 @@ class EventController extends Controller
             'lineupArtists',
             'agendaEntries',
             'mediaItems',
+            'ticketCategories.currencyPrices',
+            'ticketCategories.discounts',
+            'ticketCategories.promoCodes',
+            'adCampaigns',
+            'sponsors',
+            'amenities',
         ]);
 
         return Inertia::render('events/show', [
@@ -170,6 +177,8 @@ class EventController extends Controller
             'lineupArtists',
             'agendaEntries',
             'mediaItems',
+            'sponsors',
+            'amenities',
         ]);
 
         return Inertia::render('events/edit', [
@@ -230,7 +239,13 @@ class EventController extends Controller
     ): RedirectResponse {
         $this->authoriseEvent($current_team, $event);
 
-        $data = $request->safe()->except(['banner_image', 'lineup', 'agenda']);
+        $data = $request->safe()->except([
+            'banner_image',
+            'lineup',
+            'agenda',
+            'sponsors',
+            'amenities',
+        ]);
 
         if ($request->hasFile('banner_image')) {
             if ($event->banner_image_path) {
@@ -243,7 +258,7 @@ class EventController extends Controller
             );
         }
 
-        DB::transaction(function () use ($event, $data, $request) {
+        DB::transaction(function () use ($event, $data, $request, $imageService) {
             $event->update($data);
 
             if ($request->has('lineup')) {
@@ -252,6 +267,18 @@ class EventController extends Controller
 
             if ($request->has('agenda')) {
                 $this->syncAgenda($event, $request->validated('agenda') ?? []);
+            }
+
+            if ($request->has('sponsors')) {
+                $this->syncSponsors(
+                    $event,
+                    $request->validated('sponsors') ?? [],
+                    $imageService,
+                );
+            }
+
+            if ($request->has('amenities')) {
+                $this->syncAmenities($event, $request->validated('amenities') ?? []);
             }
         });
 
@@ -358,6 +385,40 @@ class EventController extends Controller
         ]);
     }
 
+    /**
+     * Side-channel logo upload for the sponsor manager. Mirrors the lineup
+     * photo endpoint — the manager component stuffs the returned path into
+     * the hidden `sponsors[i][logo_path]` field on the main form.
+     */
+    public function storeSponsorLogo(
+        Request $request,
+        string $current_team,
+        Event $event,
+        ImageProcessingService $imageService,
+    ): JsonResponse {
+        $this->authoriseEvent($current_team, $event);
+
+        $request->validate([
+            'logo' => [
+                'required',
+                'image',
+                'mimetypes:image/jpeg,image/png,image/webp,image/svg+xml',
+                'max:5120',
+            ],
+        ]);
+
+        $path = $imageService->processAndStore(
+            $request->file('logo'),
+            'events/sponsors',
+            ImageProcessingService::SQUARE_SIZES,
+        );
+
+        return response()->json([
+            'path' => $path,
+            'url' => Storage::url($path),
+        ]);
+    }
+
     public function geocodeSearch(Request $request): JsonResponse
     {
         $query = trim((string) $request->string('q'));
@@ -368,27 +429,46 @@ class EventController extends Controller
 
         $cacheKey = 'geocode:'.md5(strtolower($query));
 
-        $results = Cache::remember($cacheKey, 86400, function () use ($query) {
-            try {
-                $response = Http::timeout(5)
-                    ->withHeaders([
-                        'User-Agent' => config('app.name', 'Discovery').' Event Discovery (admin)',
-                        'Accept-Language' => 'en',
-                    ])
-                    ->get('https://nominatim.openstreetmap.org/search', [
-                        'q' => $query,
-                        'format' => 'jsonv2',
-                        'addressdetails' => 1,
-                        'limit' => 8,
-                    ]);
+        // Serve from cache when available — this is also what satisfies Nominatim's
+        // "no identical query within X seconds" policy; cached hits never reach Nominatim.
+        if (Cache::has($cacheKey)) {
+            return response()->json(Cache::get($cacheKey));
+        }
 
-                return $response->successful() ? $response->json() : [];
-            } catch (\Throwable) {
-                return [];
+        try {
+            $response = Http::timeout(5)
+                ->withHeaders([
+                    // Nominatim policy: User-Agent must identify the app + provide a contact address.
+                    'User-Agent' => sprintf(
+                        '%s/1.0 (%s)',
+                        config('app.name', 'Discovery'),
+                        config('mail.from.address', 'admin@example.com'),
+                    ),
+                    'Accept-Language' => 'en',
+                    'Referer' => config('app.url'),
+                ])
+                ->get('https://nominatim.openstreetmap.org/search', [
+                    'q' => $query,
+                    'format' => 'jsonv2',
+                    'addressdetails' => 1,
+                    'limit' => 8,
+                ]);
+
+            if (! $response->successful()) {
+                // Do not cache — a transient Nominatim error should be retried next request.
+                return response()->json([]);
             }
-        });
 
-        return response()->json($results);
+            $results = $response->json() ?? [];
+
+            // Cache only confirmed successful responses (including legitimate empty result sets).
+            Cache::put($cacheKey, $results, 86400);
+
+            return response()->json($results);
+        } catch (\Throwable) {
+            // Network / timeout — return empty without caching so the next request retries.
+            return response()->json([]);
+        }
     }
 
     private function toEmbedUrl(string $url): string
@@ -513,6 +593,101 @@ class EventController extends Controller
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $entries
+     */
+    private function syncSponsors(
+        Event $event,
+        array $entries,
+        ImageProcessingService $imageService,
+    ): void {
+        $existing = $event->sponsors()->get(['id', 'logo_path'])->keyBy('id');
+        $submittedIds = collect($entries)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        // Delete sponsors that were removed in the UI — and clean up their
+        // logo files so we don't leak storage.
+        foreach ($existing as $id => $row) {
+            if (! in_array($id, $submittedIds, true)) {
+                if ($row->logo_path) {
+                    $imageService->delete($row->logo_path);
+                }
+                $event->sponsors()->where('id', $id)->delete();
+            }
+        }
+
+        foreach ($entries as $index => $entry) {
+            $payload = [
+                'event_id' => $event->id,
+                'name' => $entry['name'],
+                'tier' => $entry['tier'],
+                'logo_path' => $entry['logo_path'] ?? null,
+                'website_url' => $entry['website_url'] ?? null,
+                'social_url' => $entry['social_url'] ?? null,
+                'description' => $entry['description'] ?? null,
+                'sort_order' => ($index + 1) * 10,
+            ];
+
+            if (! empty($entry['id'])) {
+                $row = $existing->get((int) $entry['id']);
+
+                // If the user swapped logos, retire the previous one.
+                if (
+                    $row
+                    && $row->logo_path
+                    && $row->logo_path !== ($payload['logo_path'] ?? null)
+                ) {
+                    $imageService->delete($row->logo_path);
+                }
+
+                $event->sponsors()->where('id', $entry['id'])->update($payload);
+            } else {
+                $event->sponsors()->create($payload);
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $entries
+     */
+    private function syncAmenities(Event $event, array $entries): void
+    {
+        $existingIds = $event->amenities()->pluck('id')->all();
+        $submittedIds = collect($entries)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $toDelete = array_diff($existingIds, $submittedIds);
+        if (! empty($toDelete)) {
+            $event->amenities()->whereIn('id', $toDelete)->delete();
+        }
+
+        foreach ($entries as $index => $entry) {
+            $payload = [
+                'event_id' => $event->id,
+                'name' => $entry['name'],
+                'icon' => $entry['icon'] ?? null,
+                'description' => $entry['description'] ?? null,
+                'category' => $entry['category'] ?? null,
+                'is_highlighted' => (bool) ($entry['is_highlighted'] ?? false),
+                'sort_order' => ($index + 1) * 10,
+            ];
+
+            if (! empty($entry['id'])) {
+                $event->amenities()
+                    ->where('id', $entry['id'])
+                    ->update($payload);
+            } else {
+                $event->amenities()->create($payload);
+            }
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function eventDetailPayload(Event $event): array
@@ -574,12 +749,20 @@ class EventController extends Controller
             'seo' => [
                 'meta_title' => $event->meta_title,
                 'meta_description' => $event->meta_description,
+                'seo_keywords' => $event->seo_keywords,
+                'robots_directive' => $event->robots_directive,
                 'canonical_url' => $event->canonical_url,
                 'og_title' => $event->og_title,
                 'og_description' => $event->og_description,
                 'og_image_path' => $event->og_image_path,
+                'og_type' => $event->og_type,
+                'og_locale' => $event->og_locale,
+                'og_site_name' => $event->og_site_name,
                 'twitter_card' => $event->twitter_card,
                 'twitter_creator' => $event->twitter_creator,
+                'twitter_title' => $event->twitter_title,
+                'twitter_description' => $event->twitter_description,
+                'twitter_image' => $event->twitter_image,
             ],
             'lineup' => $event->lineupArtists->map(fn ($a) => [
                 'id' => $a->id,
@@ -612,6 +795,115 @@ class EventController extends Controller
                 'url' => $m->url ?? ($m->path ? Storage::url($m->path) : null),
                 'caption' => $m->caption,
                 'is_primary' => $m->is_primary,
+            ])->values(),
+            'ticket_categories' => $event->ticketCategories->map(fn ($cat) => [
+                'id' => $cat->id,
+                'uuid' => $cat->uuid,
+                'name' => $cat->name,
+                'description' => $cat->description,
+                'image_url' => $cat->image_path
+                    ? Storage::url($cat->image_path)
+                    : null,
+                'offline_quantity' => $cat->offline_quantity,
+                'online_quantity' => $cat->online_quantity,
+                'base_price' => $cat->base_price !== null
+                    ? (float) $cat->base_price
+                    : 0.0,
+                'base_currency' => $cat->base_currency ?? 'USD',
+                'min_per_order' => $cat->min_per_order,
+                'max_per_order' => $cat->max_per_order,
+                'is_visible' => (bool) $cat->is_visible,
+                'sales_start_at' => $cat->sales_start_at?->toISOString(),
+                'sales_end_at' => $cat->sales_end_at?->toISOString(),
+                'generation_status' => $cat->generation_status?->value,
+                'generation_progress' => $cat->generation_progress,
+                'sale_status' => [
+                    'value' => $cat->sale_status->value,
+                    'label' => $cat->sale_status->label(),
+                ],
+                'admission_type' => $cat->admission_type
+                    ? ['value' => $cat->admission_type->value, 'label' => $cat->admission_type->label()]
+                    : null,
+                'pass_type' => $cat->pass_type
+                    ? ['value' => $cat->pass_type->value, 'label' => $cat->pass_type->label()]
+                    : null,
+                'currency_prices' => $cat->currencyPrices->map(fn ($p) => [
+                    'id' => $p->id,
+                    'currency' => $p->currency_code,
+                    'price' => (float) $p->price,
+                ])->values(),
+                'discounts' => $cat->discounts->map(fn ($d) => [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'type' => $d->type,
+                    'value' => (float) $d->value,
+                    'max_uses' => $d->max_uses,
+                    'starts_at' => $d->starts_at?->toISOString(),
+                    'ends_at' => $d->ends_at?->toISOString(),
+                ])->values(),
+                'promo_codes' => $cat->promoCodes->map(fn ($p) => [
+                    'id' => $p->id,
+                    'code' => $p->code,
+                    'type' => $p->type,
+                    'value' => (float) $p->value,
+                    'max_uses' => $p->max_uses,
+                    'starts_at' => $p->starts_at?->toISOString(),
+                    'ends_at' => $p->ends_at?->toISOString(),
+                ])->values(),
+                'sort_order' => $cat->sort_order,
+            ])->values(),
+            'sponsors' => $event->sponsors
+                ->sortBy([
+                    fn ($a, $b) => $a->tier->rank() <=> $b->tier->rank(),
+                    ['sort_order', 'asc'],
+                ])
+                ->values()
+                ->map(fn ($s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'tier' => [
+                        'value' => $s->tier->value,
+                        'label' => $s->tier->label(),
+                        'rank' => $s->tier->rank(),
+                    ],
+                    'logo_path' => $s->logo_path,
+                    'logo_url' => $s->logo_path
+                        ? (str_starts_with($s->logo_path, 'http')
+                            ? $s->logo_path
+                            : Storage::url($s->logo_path))
+                        : null,
+                    'website_url' => $s->website_url,
+                    'social_url' => $s->social_url,
+                    'description' => $s->description,
+                    'sort_order' => $s->sort_order,
+                ])
+                ->values(),
+            'amenities' => $event->amenities->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'icon' => $a->icon,
+                'description' => $a->description,
+                'category' => $a->category,
+                'is_highlighted' => (bool) $a->is_highlighted,
+                'sort_order' => $a->sort_order,
+            ])->values(),
+            'sponsor_tiers' => collect(SponsorTier::cases())->map(fn (SponsorTier $t) => [
+                'value' => $t->value,
+                'label' => $t->label(),
+                'rank' => $t->rank(),
+            ])->values(),
+            'ad_campaigns' => $event->adCampaigns->map(fn ($c) => [
+                'id' => $c->id,
+                'uuid' => $c->uuid,
+                'name' => $c->name,
+                'platform' => ['value' => $c->platform->value, 'label' => $c->platform->label()],
+                'campaign_status' => ['value' => $c->campaign_status->value, 'label' => $c->campaign_status->label()],
+                'budget_daily' => $c->budget_daily ? (float) $c->budget_daily : null,
+                'budget_total' => $c->budget_total ? (float) $c->budget_total : null,
+                'budget_currency' => $c->budget_currency,
+                'runs_from' => $c->runs_from?->toISOString(),
+                'runs_until' => $c->runs_until?->toISOString(),
+                'metrics' => $c->metrics,
             ])->values(),
         ];
     }

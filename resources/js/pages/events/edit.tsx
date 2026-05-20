@@ -2,8 +2,15 @@ import { Form, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Eye } from 'lucide-react';
 import { useState } from 'react';
 import { EventAgendaManager } from '@/components/event-agenda-manager';
+import { EventAmenitiesManager } from '@/components/event-amenities-manager';
+import type { AmenityInitial } from '@/components/event-amenities-manager';
 import { EventLineupManager } from '@/components/event-lineup-manager';
 import { EventMediaManager } from '@/components/event-media-manager';
+import { EventSponsorsManager } from '@/components/event-sponsors-manager';
+import type {
+    SponsorInitial,
+    SponsorTierOption,
+} from '@/components/event-sponsors-manager';
 import { FieldError } from '@/components/field-error';
 import Heading from '@/components/heading';
 import ImageDropzone from '@/components/image-dropzone';
@@ -89,6 +96,9 @@ type EventDetail = {
         caption: string | null;
         is_primary: boolean;
     }>;
+    sponsors: SponsorInitial[];
+    amenities: AmenityInitial[];
+    sponsor_tiers: SponsorTierOption[];
 };
 
 type Props = {
@@ -230,6 +240,7 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
 
     const handleStartsAtChange = (value: string) => {
         setStartsAt(value);
+
         if (endsAt && value && endsAt < value) {
             setEndsAt('');
         }
@@ -262,8 +273,8 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
                 <Form action={action} method="patch" className="space-y-6">
                     {({ errors, processing }) => (
                         <>
-                            <div className="grid animate-in gap-6 duration-500 fade-in slide-in-from-bottom-2 lg:grid-cols-3">
-                                <div className="space-y-6 lg:col-span-2">
+                            <div className="grid animate-in gap-6 duration-500 fade-in slide-in-from-bottom-2 lg:grid-cols-12">
+                                <div className="space-y-6 lg:col-span-8">
                                     <Section
                                         title="Basics"
                                         description="The essentials people see first."
@@ -1047,10 +1058,44 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
                                             timezone={event.timezone}
                                         />
                                     </Section>
+
+                                    <Section
+                                        title="Sponsors"
+                                        description="Brands and partners backing this event. Tier controls how prominently each logo is rendered on the public page."
+                                    >
+                                        <EventSponsorsManager
+                                            eventSlug={event.slug}
+                                            initial={event.sponsors}
+                                            tiers={event.sponsor_tiers}
+                                        />
+                                    </Section>
+
+                                    <Section
+                                        title="Amenities"
+                                        description="Facilities, services and tech available at the venue. Pick from common options or add your own."
+                                    >
+                                        <EventAmenitiesManager
+                                            initial={event.amenities}
+                                        />
+                                    </Section>
+
+                                    {/* Media gallery — separate upload endpoint, but rendered inside the
+                                        left column so it shares width with form sections and the right
+                                        sidebar stays sticky as the user scrolls past it. The inner
+                                        EventMediaManager uses div-based controls (no nested <form>). */}
+                                    <Section
+                                        title="Media gallery"
+                                        description="Additional images shown as a carousel in the event hero. Uploads save immediately."
+                                    >
+                                        <EventMediaManager
+                                            eventSlug={event.slug}
+                                            items={event.media}
+                                        />
+                                    </Section>
                                 </div>
 
                                 {/* Sidebar: visibility / contact / save */}
-                                <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+                                <aside className="space-y-4 lg:sticky lg:top-4 lg:col-span-4 lg:self-start">
                                     <Section title="Visibility">
                                         <div className="grid gap-2">
                                             <FieldLabel
@@ -1183,17 +1228,6 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
                         </>
                     )}
                 </Form>
-
-                {/* Media gallery — separate upload endpoint, not part of main form */}
-                <Section
-                    title="Media gallery"
-                    description="Additional images shown as a carousel in the event hero. Uploads save immediately."
-                >
-                    <EventMediaManager
-                        eventSlug={event.slug}
-                        items={event.media}
-                    />
-                </Section>
             </div>
         </>
     );

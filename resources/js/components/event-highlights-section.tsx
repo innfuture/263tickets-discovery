@@ -1,5 +1,6 @@
-import { CarFront, DoorOpen, ShieldAlert } from 'lucide-react';
+import { CarFront, DoorOpen, Sparkles, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { SectionTitle } from '@/components/ui/section-title';
 
 export type EventHighlights = {
     doors_open_at: string | null;
@@ -32,7 +33,9 @@ export function EventHighlightsSection({ event }: { event: EventHighlights }) {
     return (
         <Card className="animate-in duration-500 fade-in slide-in-from-bottom-2">
             <CardHeader>
-                <h2 className="font-semibold">Good to know</h2>
+                <SectionTitle icon={<Sparkles className="size-4" />}>
+                    Good to know
+                </SectionTitle>
             </CardHeader>
             <CardContent>
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -86,10 +89,12 @@ function HighlightTile({
     detail?: string;
 }) {
     return (
-        <div className="flex gap-3 rounded-md border bg-muted/40 p-3">
-            <div className="mt-0.5 shrink-0 text-primary">{icon}</div>
+        <div className="flex gap-3 rounded-lg border bg-card p-3 transition hover:border-primary/30 hover:bg-primary/3">
+            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                {icon}
+            </div>
             <div className="min-w-0 space-y-1">
-                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                     {label}
                 </p>
                 <p className="text-sm font-semibold">{value}</p>

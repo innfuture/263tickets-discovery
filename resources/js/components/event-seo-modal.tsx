@@ -29,12 +29,20 @@ import { Textarea } from '@/components/ui/textarea';
 export type EventSeo = {
     meta_title: string | null;
     meta_description: string | null;
+    seo_keywords: string | null;
+    robots_directive: string | null;
     canonical_url: string | null;
     og_title: string | null;
     og_description: string | null;
     og_image_path: string | null;
+    og_type: string | null;
+    og_locale: string | null;
+    og_site_name: string | null;
     twitter_card: string | null;
     twitter_creator: string | null;
+    twitter_title: string | null;
+    twitter_description: string | null;
+    twitter_image: string | null;
 };
 
 const TWITTER_CARD_OPTIONS = [
@@ -75,12 +83,16 @@ export function EventSeoModal({
     seo,
     eventName,
     eventDescription,
+    eventShortDescription = null,
+    eventBannerUrl = null,
     eventSlug,
     children,
 }: PropsWithChildren<{
     seo: EventSeo;
     eventName: string;
     eventDescription: string | null;
+    eventShortDescription?: string | null;
+    eventBannerUrl?: string | null;
     eventSlug: string;
 }>) {
     const page = usePage<{ currentTeam?: { slug: string } | null }>();
@@ -92,17 +104,39 @@ export function EventSeoModal({
         seo.twitter_card ?? '',
     );
 
-    const previewTitle = seo.meta_title || eventName;
-    const previewDescription =
-        seo.meta_description ||
-        (eventDescription ? stripHtml(eventDescription).slice(0, 160) : '');
-    const previewUrl = seo.canonical_url || `https://example.com/${eventSlug}`;
+    // Derive sensible fallbacks from event data so the modal auto-populates.
+    const eventCleanDescription = eventDescription
+        ? stripHtml(eventDescription)
+        : null;
+    const defaultMetaDescription = (
+        eventShortDescription ??
+        eventCleanDescription ??
+        ''
+    ).slice(0, 160);
+    const defaultOgDescription = (
+        eventShortDescription ??
+        eventCleanDescription ??
+        ''
+    ).slice(0, 200);
+    const defaultCanonical =
+        typeof window !== 'undefined' ? window.location.href : '';
+
+    const fill = (stored: string | null, fallback: string): string =>
+        stored && stored.trim() !== '' ? stored : fallback;
+
+    const previewTitle = fill(seo.meta_title, eventName);
+    const previewDescription = fill(
+        seo.meta_description,
+        defaultMetaDescription,
+    );
+    const previewUrl = fill(seo.canonical_url, defaultCanonical);
 
     return (
         <Dialog
             open={open}
             onOpenChange={(o) => {
                 setOpen(o);
+
                 if (!o) {
                     setTwitterCard(seo.twitter_card ?? '');
                 }
@@ -180,9 +214,10 @@ export function EventSeoModal({
                                             <Input
                                                 id="seo-meta-title"
                                                 name="meta_title"
-                                                defaultValue={
-                                                    seo.meta_title ?? ''
-                                                }
+                                                defaultValue={fill(
+                                                    seo.meta_title,
+                                                    eventName,
+                                                )}
                                                 maxLength={60}
                                                 placeholder={eventName}
                                                 aria-invalid={
@@ -200,11 +235,15 @@ export function EventSeoModal({
                                             <Textarea
                                                 id="seo-meta-description"
                                                 name="meta_description"
-                                                defaultValue={
-                                                    seo.meta_description ?? ''
-                                                }
+                                                defaultValue={fill(
+                                                    seo.meta_description,
+                                                    defaultMetaDescription,
+                                                )}
                                                 maxLength={160}
                                                 rows={3}
+                                                placeholder={
+                                                    defaultMetaDescription
+                                                }
                                                 aria-invalid={
                                                     !!errors.meta_description
                                                 }
@@ -221,14 +260,65 @@ export function EventSeoModal({
                                                 id="seo-canonical"
                                                 name="canonical_url"
                                                 type="url"
-                                                defaultValue={
-                                                    seo.canonical_url ?? ''
-                                                }
-                                                placeholder="https://"
+                                                defaultValue={fill(
+                                                    seo.canonical_url,
+                                                    defaultCanonical,
+                                                )}
+                                                placeholder={defaultCanonical}
                                                 aria-invalid={
                                                     !!errors.canonical_url
                                                 }
                                             />
+                                        </FieldRow>
+
+                                        <FieldRow
+                                            htmlFor="seo-keywords"
+                                            label="Keywords"
+                                            error={errors.seo_keywords}
+                                            hint="Comma-separated keywords. Limited SEO impact but useful for internal search."
+                                        >
+                                            <Input
+                                                id="seo-keywords"
+                                                name="seo_keywords"
+                                                defaultValue={
+                                                    seo.seo_keywords ?? ''
+                                                }
+                                                maxLength={255}
+                                                placeholder="festival, music, summer"
+                                            />
+                                        </FieldRow>
+
+                                        <FieldRow
+                                            htmlFor="seo-robots"
+                                            label="Robots directive"
+                                            error={errors.robots_directive}
+                                            hint="Controls how search engine crawlers index this page."
+                                        >
+                                            <Select
+                                                name="robots_directive"
+                                                defaultValue={
+                                                    seo.robots_directive ??
+                                                    'index,follow'
+                                                }
+                                            >
+                                                <SelectTrigger id="seo-robots">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="index,follow">
+                                                        Index, Follow (default)
+                                                    </SelectItem>
+                                                    <SelectItem value="index,nofollow">
+                                                        Index, No Follow
+                                                    </SelectItem>
+                                                    <SelectItem value="noindex,follow">
+                                                        No Index, Follow
+                                                    </SelectItem>
+                                                    <SelectItem value="noindex,nofollow">
+                                                        No Index, No Follow
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </FieldRow>
                                     </TabsContent>
 
@@ -245,10 +335,12 @@ export function EventSeoModal({
                                             <Input
                                                 id="seo-og-title"
                                                 name="og_title"
-                                                defaultValue={
-                                                    seo.og_title ?? ''
-                                                }
+                                                defaultValue={fill(
+                                                    seo.og_title,
+                                                    eventName,
+                                                )}
                                                 maxLength={60}
+                                                placeholder={eventName}
                                                 aria-invalid={!!errors.og_title}
                                             />
                                         </FieldRow>
@@ -261,11 +353,15 @@ export function EventSeoModal({
                                             <Textarea
                                                 id="seo-og-description"
                                                 name="og_description"
-                                                defaultValue={
-                                                    seo.og_description ?? ''
-                                                }
+                                                defaultValue={fill(
+                                                    seo.og_description,
+                                                    defaultOgDescription,
+                                                )}
                                                 maxLength={160}
                                                 rows={3}
+                                                placeholder={
+                                                    defaultOgDescription
+                                                }
                                                 aria-invalid={
                                                     !!errors.og_description
                                                 }
@@ -281,13 +377,66 @@ export function EventSeoModal({
                                             <Input
                                                 id="seo-og-image"
                                                 name="og_image_path"
-                                                defaultValue={
-                                                    seo.og_image_path ?? ''
+                                                defaultValue={fill(
+                                                    seo.og_image_path,
+                                                    eventBannerUrl ?? '',
+                                                )}
+                                                placeholder={
+                                                    eventBannerUrl ??
+                                                    'events/og/...'
                                                 }
-                                                placeholder="events/og/..."
                                                 aria-invalid={
                                                     !!errors.og_image_path
                                                 }
+                                            />
+                                        </FieldRow>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <FieldRow
+                                                htmlFor="seo-og-type"
+                                                label="OG type"
+                                                error={errors.og_type}
+                                            >
+                                                <Input
+                                                    id="seo-og-type"
+                                                    name="og_type"
+                                                    defaultValue={
+                                                        seo.og_type ?? 'event'
+                                                    }
+                                                    maxLength={32}
+                                                    placeholder="event"
+                                                />
+                                            </FieldRow>
+                                            <FieldRow
+                                                htmlFor="seo-og-locale"
+                                                label="OG locale"
+                                                error={errors.og_locale}
+                                            >
+                                                <Input
+                                                    id="seo-og-locale"
+                                                    name="og_locale"
+                                                    defaultValue={
+                                                        seo.og_locale ?? ''
+                                                    }
+                                                    maxLength={10}
+                                                    placeholder="en_US"
+                                                />
+                                            </FieldRow>
+                                        </div>
+
+                                        <FieldRow
+                                            htmlFor="seo-og-site-name"
+                                            label="OG site name"
+                                            error={errors.og_site_name}
+                                            hint="The name of the overall site, e.g. 'Acme Events'."
+                                        >
+                                            <Input
+                                                id="seo-og-site-name"
+                                                name="og_site_name"
+                                                defaultValue={
+                                                    seo.og_site_name ?? ''
+                                                }
+                                                maxLength={100}
                                             />
                                         </FieldRow>
                                     </TabsContent>
@@ -365,6 +514,65 @@ export function EventSeoModal({
                                                 }
                                             />
                                         </FieldRow>
+
+                                        <FieldRow
+                                            htmlFor="seo-twitter-title"
+                                            label="Twitter title"
+                                            error={errors.twitter_title}
+                                            hint="Overrides OG title for Twitter. Keep under 70 characters."
+                                        >
+                                            <Input
+                                                id="seo-twitter-title"
+                                                name="twitter_title"
+                                                defaultValue={fill(
+                                                    seo.twitter_title,
+                                                    eventName,
+                                                )}
+                                                maxLength={70}
+                                                placeholder={eventName}
+                                            />
+                                        </FieldRow>
+
+                                        <FieldRow
+                                            htmlFor="seo-twitter-description"
+                                            label="Twitter description"
+                                            error={errors.twitter_description}
+                                            hint="Overrides OG description for Twitter. Keep under 200 characters."
+                                        >
+                                            <Textarea
+                                                id="seo-twitter-description"
+                                                name="twitter_description"
+                                                defaultValue={fill(
+                                                    seo.twitter_description,
+                                                    defaultOgDescription,
+                                                )}
+                                                maxLength={200}
+                                                rows={2}
+                                                placeholder={
+                                                    defaultOgDescription
+                                                }
+                                            />
+                                        </FieldRow>
+
+                                        <FieldRow
+                                            htmlFor="seo-twitter-image"
+                                            label="Twitter image URL"
+                                            error={errors.twitter_image}
+                                            hint="Overrides OG image for Twitter. Falls back to OG image."
+                                        >
+                                            <Input
+                                                id="seo-twitter-image"
+                                                name="twitter_image"
+                                                defaultValue={fill(
+                                                    seo.twitter_image,
+                                                    eventBannerUrl ?? '',
+                                                )}
+                                                placeholder={
+                                                    eventBannerUrl ?? 'https://'
+                                                }
+                                                maxLength={2048}
+                                            />
+                                        </FieldRow>
                                     </TabsContent>
                                 </Tabs>
                             </div>
@@ -394,5 +602,6 @@ function stripHtml(html: string): string {
 
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
+
     return tmp.textContent ?? tmp.innerText ?? '';
 }
