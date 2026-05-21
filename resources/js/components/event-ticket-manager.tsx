@@ -1,4 +1,5 @@
 import { Form, router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
     Eye,
     EyeOff,
@@ -21,7 +22,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useConfirm } from '@/components/ui/confirmation-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
+import { TicketBatchesTimeline } from '@/components/ticket-batches-timeline';
+import type { TicketBatchView } from '@/components/ticket-batches-timeline';
+import { TicketInventoryAdjustButton } from '@/components/ticket-inventory-adjust';
 import {
     Dialog,
     DialogContent,
@@ -111,6 +117,12 @@ type TicketCategory = {
     currency_prices: CurrencyPrice[];
     discounts: Discount[];
     promo_codes: PromoCode[];
+    /**
+     * Inventory batches — oldest first. Always contains at least the
+     * initial-creation batch once offline_quantity > 0; older categories
+     * get a synthetic Batch #1 backfilled by the migration.
+     */
+    batches: TicketBatchView[];
     sort_order: number;
 };
 
@@ -195,13 +207,52 @@ function useGenerationPoller(
                         generation_status: GenerationStatus;
                         generation_progress: number | null;
                     }) => {
-                        setStatuses((prev) => ({
-                            ...prev,
-                            [cat.uuid]: {
-                                status: data.generation_status,
-                                progress: data.generation_progress,
-                            },
-                        }));
+                        // Read the previous status from current state to
+                        // detect the (pending|processing) → (completed|failed)
+                        // transition exactly once, even if poll() races.
+                        let firedToast = false;
+
+                        setStatuses((prev) => {
+                            const previous =
+                                prev[cat.uuid]?.status ??
+                                cat.generation_status;
+                            const isTerminal =
+                                data.generation_status === 'completed' ||
+                                data.generation_status === 'failed';
+                            const wasInFlight =
+                                previous === 'pending' ||
+                                previous === 'processing';
+
+                            if (isTerminal && wasInFlight && !firedToast) {
+                                firedToast = true;
+
+                                if (data.generation_status === 'completed') {
+                                    toast.success(
+                                        `"${cat.name}" — ${cat.offline_quantity.toLocaleString()} offline tickets ready`,
+                                        {
+                                            description:
+                                                'Sales can begin whenever you publish the event.',
+                                        },
+                                    );
+                                } else {
+                                    toast.error(
+                                        `"${cat.name}" — ticket generation failed`,
+                                        {
+                                            description:
+                                                'Open the category to retry; if the error repeats check the queue logs.',
+                                        },
+                                    );
+                                }
+                            }
+
+                            return {
+                                ...prev,
+                                [cat.uuid]: {
+                                    status: data.generation_status,
+                                    progress: data.generation_progress,
+                                },
+                            };
+                        });
 
                         if (
                             data.generation_status === 'completed' ||
@@ -1365,26 +1416,59 @@ function CategoryRow({
     eventSlug: string;
     pollStatus?: { status: GenerationStatus; progress: number | null };
 }) {
+    const confirm = useConfirm();
     const baseUrl = `/${teamSlug}/events/${eventSlug}/tickets/${category.uuid}`;
     const genStatus = pollStatus?.status ?? category.generation_status;
     const genProgress = pollStatus?.progress ?? category.generation_progress;
     const isGenerating = genStatus === 'processing' || genStatus === 'pending';
 
-    const changeSaleStatus = (status: string) =>
+    const changeSaleStatus = async (status: string) => {
+        // Pause / resume have user-visible consequences (attendees can't buy
+        // while paused) — gate them behind the global confirmation modal so
+        // an accidental click doesn't kill the sale.
+        const labels: Record<string, { title: string; description: string; confirmLabel: string }> = {
+            paused: {
+                title: `Pause sales for "${category.name}"?`,
+                description:
+                    'Attendees won\'t be able to buy this ticket until you resume sales.',
+                confirmLabel: 'Pause sales',
+            },
+            active: {
+                title: `Resume sales for "${category.name}"?`,
+                description:
+                    'This category becomes purchasable again immediately.',
+                confirmLabel: 'Resume sales',
+            },
+        };
+
+        const meta = labels[status];
+        if (meta) {
+            const ok = await confirm({
+                title: meta.title,
+                description: meta.description,
+                confirmLabel: meta.confirmLabel,
+                tone: status === 'paused' ? 'warning' : 'default',
+            });
+            if (!ok) return;
+        }
+
         router.patch(
             `${baseUrl}/sale-status`,
             { sale_status: status },
             { preserveScroll: true },
         );
+    };
 
-    const remove = () => {
-        if (
-            !window.confirm(
-                `Delete "${category.name}"? This permanently removes all tickets in this category.`,
-            )
-        ) {
-            return;
-        }
+    const remove = async () => {
+        const ok = await confirm({
+            title: `Delete "${category.name}"?`,
+            description:
+                'This permanently removes all tickets in this category and cannot be undone.',
+            confirmLabel: 'Delete category',
+            tone: 'destructive',
+        });
+
+        if (!ok) return;
 
         router.delete(baseUrl, { preserveScroll: true });
     };
@@ -1392,9 +1476,38 @@ function CategoryRow({
     return (
         <div className="space-y-2 rounded-md border bg-card p-3">
             <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
-                        <span className="truncate">{category.name}</span>
+                <div className="flex min-w-0 items-start gap-3">
+                    {/* Thumbnail with click-to-zoom. Always rendered so the
+                        row layout is stable whether or not artwork exists;
+                        click is a no-op when image_url is null. */}
+                    <ImageLightbox
+                        src={category.image_url}
+                        alt={category.name}
+                        caption={category.description ?? undefined}
+                    >
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md border bg-muted">
+                            {category.image_url ? (
+                                <img
+                                    src={category.image_url}
+                                    alt=""
+                                    className="size-full object-cover"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display =
+                                            'none';
+                                    }}
+                                />
+                            ) : (
+                                <div className="flex size-full items-center justify-center text-[10px] font-semibold text-muted-foreground uppercase">
+                                    {category.name.slice(0, 2)}
+                                </div>
+                            )}
+                        </div>
+                    </ImageLightbox>
+
+                    <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+                            <span className="truncate">{category.name}</span>
                         <Badge
                             className={cn(
                                 'rounded-full border text-xs font-normal',
@@ -1454,6 +1567,7 @@ function CategoryRow({
                             </span>
                         ) : null}
                     </div>
+                    </div>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
@@ -1512,6 +1626,29 @@ function CategoryRow({
                     <p className="text-xs text-muted-foreground">
                         Generating tickets… {genProgress}%
                     </p>
+                </div>
+            ) : null}
+
+            {/*
+              Inventory management — only relevant for offline-ticket
+              categories. The button opens the adjust dialog; the timeline
+              below shows every batch (create / increase / decrease) for
+              this category, oldest first.
+            */}
+            {category.offline_quantity > 0 || category.batches.length > 0 ? (
+                <div className="space-y-2 border-t pt-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                            Offline inventory
+                        </p>
+                        <TicketInventoryAdjustButton
+                            endpoint={`${baseUrl}/adjust`}
+                            categoryName={category.name}
+                            currentTotal={category.offline_quantity}
+                            voidableCount={category.offline_quantity}
+                        />
+                    </div>
+                    <TicketBatchesTimeline batches={category.batches} />
                 </div>
             ) : null}
         </div>

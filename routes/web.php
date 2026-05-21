@@ -33,12 +33,32 @@ Route::prefix('{current_team}')
         // ── Ticket categories ──────────────────────────────────────────────────
         Route::get('events/{event:slug}/tickets', [TicketCategoryController::class, 'index'])->name('tickets.index');
         Route::post('events/{event:slug}/tickets', [TicketCategoryController::class, 'store'])->name('tickets.store');
-        Route::patch('events/{event:slug}/tickets/{category}', [TicketCategoryController::class, 'update'])->name('tickets.update');
-        Route::delete('events/{event:slug}/tickets/{category}', [TicketCategoryController::class, 'destroy'])->name('tickets.destroy');
-        Route::get('events/{event:slug}/tickets/{category}/status', [TicketCategoryController::class, 'generationStatus'])->name('tickets.generation-status');
-        Route::patch('events/{event:slug}/tickets/{category}/sale-status', [TicketCategoryController::class, 'updateSaleStatus'])->name('tickets.sale-status');
-        Route::post('events/{event:slug}/tickets/{category}/discounts', [TicketCategoryController::class, 'storeDiscount'])->name('tickets.discounts.store');
-        Route::post('events/{event:slug}/tickets/{category}/promo-codes', [TicketCategoryController::class, 'storePromoCode'])->name('tickets.promo-codes.store');
+        // {category:uuid} — public identifier shipped to the frontend is the
+        // UUID column, not the numeric id. Without this explicit binding key
+        // Laravel resolves the param against `id` and 404s on UUID URLs.
+        //
+        // withoutScopedBindings() — declaring an explicit child key triggers
+        // Laravel's implicit child scoping ($event->categories() inferred
+        // from the "category" parameter name), but the relation here is
+        // called ticketCategories. The controller already enforces
+        // `$category->event_id === $event->id` on every action, so we opt
+        // out of the implicit scope rather than aliasing the relation.
+        Route::patch('events/{event:slug}/tickets/{category:uuid}', [TicketCategoryController::class, 'update'])
+            ->withoutScopedBindings()->name('tickets.update');
+        Route::delete('events/{event:slug}/tickets/{category:uuid}', [TicketCategoryController::class, 'destroy'])
+            ->withoutScopedBindings()->name('tickets.destroy');
+        Route::get('events/{event:slug}/tickets/{category:uuid}/status', [TicketCategoryController::class, 'generationStatus'])
+            ->withoutScopedBindings()->name('tickets.generation-status');
+        Route::patch('events/{event:slug}/tickets/{category:uuid}/sale-status', [TicketCategoryController::class, 'updateSaleStatus'])
+            ->withoutScopedBindings()->name('tickets.sale-status');
+        // Inventory adjustment — creates an OfflineTicketBatch (Increase
+        // or Decrease) and dispatches the processor.
+        Route::post('events/{event:slug}/tickets/{category:uuid}/adjust', [TicketCategoryController::class, 'adjust'])
+            ->withoutScopedBindings()->name('tickets.adjust');
+        Route::post('events/{event:slug}/tickets/{category:uuid}/discounts', [TicketCategoryController::class, 'storeDiscount'])
+            ->withoutScopedBindings()->name('tickets.discounts.store');
+        Route::post('events/{event:slug}/tickets/{category:uuid}/promo-codes', [TicketCategoryController::class, 'storePromoCode'])
+            ->withoutScopedBindings()->name('tickets.promo-codes.store');
 
         // ── Analytics ─────────────────────────────────────────────────────────
         Route::get('events/{event:slug}/analytics', [EventAnalyticsController::class, 'index'])->name('events.analytics');

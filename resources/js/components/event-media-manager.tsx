@@ -3,6 +3,7 @@ import { ImagePlus, Trash2, Video } from 'lucide-react';
 import { useRef, useState } from 'react';
 import ImageDropzone from '@/components/image-dropzone';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirmation-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,11 +27,17 @@ export function EventMediaManager({
     const page = usePage<{ currentTeam?: { slug: string } | null }>();
     const teamSlug = page.props.currentTeam?.slug ?? '';
     const uploadUrl = `/${teamSlug}/events/${eventSlug}/media`;
+    const confirm = useConfirm();
 
-    const handleDelete = (id: number) => {
-        if (!window.confirm('Remove this from the gallery?')) {
-            return;
-        }
+    const handleDelete = async (id: number) => {
+        const ok = await confirm({
+            title: 'Remove this from the gallery?',
+            description: 'The image or video will be deleted from storage.',
+            confirmLabel: 'Remove',
+            tone: 'destructive',
+        });
+
+        if (!ok) return;
 
         router.delete(`${uploadUrl}/${id}`, { preserveScroll: true });
     };

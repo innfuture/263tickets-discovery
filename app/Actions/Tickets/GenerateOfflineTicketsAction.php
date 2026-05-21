@@ -44,6 +44,19 @@ class GenerateOfflineTicketsAction
 
         $done = $generated;
 
+        // Denormalised columns copied off the parent category — keeps gate
+        // scanners single-row reads (no JOIN to ticket_categories needed at
+        // scan time). Resolved once outside the batch loop so we don't
+        // re-hit the model on every row.
+        //
+        // pass_type / admission_type are nullable on ticket_categories but
+        // NOT NULL on offline_tickets (the gate scanner needs a concrete
+        // value). Fall back to the safest defaults — single use, admit one
+        // — when the category hasn't been classified.
+        $organisationId = $category->organisation_id ?? $category->event?->organisation_id;
+        $passType = $category->pass_type?->value ?? 'single';
+        $admissionType = $category->admission_type?->value ?? 'admit_one';
+
         foreach ($this->batches($remaining) as $batchSize) {
             $rows = [];
             $now = now();
@@ -53,13 +66,19 @@ class GenerateOfflineTicketsAction
                 $ticketNumber = $this->generateTicketNumber($category, $uuid);
                 $qrPayload = $this->signQrPayload($uuid, $ticketNumber, $category->event_id);
 
+                // Column list MUST match the offline_tickets schema. Earlier
+                // versions of this action wrote `generation_status` — that
+                // column lives on ticket_categories, not offline_tickets,
+                // and the bad insert failed every job silently.
                 $rows[] = [
                     'uuid' => $uuid,
-                    'ticket_number' => $ticketNumber,
                     'ticket_category_id' => $category->id,
                     'event_id' => $category->event_id,
+                    'organisation_id' => $organisationId,
+                    'ticket_number' => $ticketNumber,
                     'qr_payload' => $qrPayload,
-                    'generation_status' => TicketGenerationStatus::Completed->value,
+                    'pass_type' => $passType,
+                    'admission_type' => $admissionType,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

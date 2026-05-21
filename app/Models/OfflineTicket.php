@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'ticket_category_id',
+    'batch_id',
+    'voided_by_batch_id',
     'event_id',
     'organisation_id',
     'ticket_number',
@@ -60,6 +62,12 @@ class OfflineTicket extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(TicketCategory::class, 'ticket_category_id');
+    }
+
+    /** @return BelongsTo<OfflineTicketBatch, $this> */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(OfflineTicketBatch::class, 'batch_id');
     }
 
     /** @return BelongsTo<Event, $this> */

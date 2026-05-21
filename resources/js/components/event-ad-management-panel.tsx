@@ -16,6 +16,7 @@ import { AdCampaignDialog } from '@/components/ad-campaign-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useConfirm } from '@/components/ui/confirmation-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionTitle } from '@/components/ui/section-title';
 import { formatPrice } from '@/lib/currencies';
@@ -95,6 +96,7 @@ function CampaignRow({
 }) {
     const base = `/${teamSlug}/events/${eventSlug}/ads/${campaign.uuid}`;
     const [syncing, setSyncing] = useState(false);
+    const confirm = useConfirm();
 
     const handleSync = () => {
         setSyncing(true);
@@ -108,14 +110,16 @@ function CampaignRow({
         );
     };
 
-    const handleDelete = () => {
-        if (
-            !window.confirm(
-                `Stop and delete campaign "${campaign.name}"? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    const handleDelete = async () => {
+        const ok = await confirm({
+            title: `Delete campaign "${campaign.name}"?`,
+            description:
+                'The campaign will be stopped on the ad platform and removed from this event. This cannot be undone.',
+            confirmLabel: 'Stop and delete',
+            tone: 'destructive',
+        });
+
+        if (!ok) return;
 
         router.delete(base, { preserveScroll: true });
     };
@@ -193,13 +197,23 @@ function CampaignRow({
                             size="icon"
                             className="size-7"
                             title="Pause campaign"
-                            onClick={() =>
+                            onClick={async () => {
+                                const ok = await confirm({
+                                    title: `Pause "${campaign.name}"?`,
+                                    description:
+                                        'The campaign will stop spending on its ad platform until you resume it.',
+                                    confirmLabel: 'Pause',
+                                    tone: 'warning',
+                                });
+
+                                if (!ok) return;
+
                                 router.post(
                                     `${base}/pause`,
                                     {},
                                     { preserveScroll: true },
-                                )
-                            }
+                                );
+                            }}
                         >
                             <Pause className="size-3.5" />
                         </Button>

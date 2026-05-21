@@ -87,6 +87,13 @@ class TicketCategory extends Model
         return $this->hasMany(OfflineTicket::class);
     }
 
+    /** @return HasMany<OfflineTicketBatch, $this> */
+    public function batches(): HasMany
+    {
+        return $this->hasMany(OfflineTicketBatch::class)
+            ->orderBy('batch_number');
+    }
+
     /** @return HasMany<TicketCurrencyPrice, $this> */
     public function currencyPrices(): HasMany
     {

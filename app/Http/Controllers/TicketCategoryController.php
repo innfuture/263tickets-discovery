@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TicketSaleStatus;
+use App\Http\Requests\Tickets\AdjustTicketInventoryRequest;
 use App\Http\Requests\Tickets\StoreTicketCategoryRequest;
 use App\Http\Requests\Tickets\UpdateTicketCategoryRequest;
 use App\Models\Event;
@@ -104,6 +105,52 @@ class TicketCategoryController extends Controller
         return back()->with('toast', [
             'type' => 'success',
             'message' => 'Ticket category deleted.',
+        ]);
+    }
+
+    /**
+     * Adjust offline ticket inventory up or down. A positive delta mints
+     * more tickets in a new batch; a negative delta voids existing tickets
+     * (LIFO, only unscanned + unsold).
+     *
+     * The service-layer guard rejects unsafe deltas (e.g. -50 when only
+     * 20 are voidable) with a DomainException — surface that to the user
+     * via a friendly toast rather than a 500.
+     */
+    public function adjust(
+        AdjustTicketInventoryRequest $request,
+        string $current_team,
+        Event $event,
+        TicketCategory $category,
+    ): RedirectResponse {
+        $this->authoriseEvent($current_team, $event);
+        abort_unless($category->event_id === $event->id, 404);
+
+        $data = $request->validated();
+        $delta = (int) $data['delta'];
+
+        try {
+            $batch = $this->ticketService->adjustCategoryQuantity(
+                category: $category,
+                delta: $delta,
+                reason: $data['reason'] ?? null,
+                actor: $request->user(),
+            );
+        } catch (\DomainException $e) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => sprintf(
+                'Batch #%d queued — %s %d tickets.',
+                $batch->batch_number,
+                $delta > 0 ? 'adding' : 'removing',
+                abs($delta),
+            ),
         ]);
     }
 

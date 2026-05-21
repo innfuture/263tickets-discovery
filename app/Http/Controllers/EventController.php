@@ -127,6 +127,7 @@ class EventController extends Controller
             'ticketCategories.currencyPrices',
             'ticketCategories.discounts',
             'ticketCategories.promoCodes',
+            'ticketCategories.batches.actor',
             'adCampaigns',
             'sponsors',
             'amenities',
@@ -851,6 +852,29 @@ class EventController extends Controller
                     'ends_at' => $p->ends_at?->toISOString(),
                 ])->values(),
                 'sort_order' => $cat->sort_order,
+                // Inventory batch timeline — every create / increase /
+                // decrease that's ever shaped this category, oldest first.
+                // Powers the "Batches" panel on the category card.
+                'batches' => $cat->batches->map(fn ($b) => [
+                    'id' => $b->id,
+                    'batch_number' => $b->batch_number,
+                    'operation' => [
+                        'value' => $b->operation->value,
+                        'label' => $b->operation->label(),
+                        'sign' => $b->operation->sign(),
+                    ],
+                    'quantity' => $b->quantity,
+                    'actual_quantity' => $b->actual_quantity,
+                    'status' => [
+                        'value' => $b->status->value,
+                        'label' => $b->status->label(),
+                    ],
+                    'progress' => $b->progress,
+                    'reason' => $b->reason,
+                    'actor_name' => $b->actor?->name,
+                    'created_at' => $b->created_at?->toISOString(),
+                    'completed_at' => $b->completed_at?->toISOString(),
+                ])->values(),
             ])->values(),
             'sponsors' => $event->sponsors
                 ->sortBy([
