@@ -26,6 +26,8 @@ enum Permission: string
     case OrganizationDelete = 'organization.delete';
     case OrganizationTransferOwnership = 'organization.transfer-ownership';
     case OrganizationManageBilling = 'organization.manage-billing';
+    case OrganizationManageBrand = 'organization.manage-brand';
+    case OrganizationManageDomain = 'organization.manage-domain';
 
     // ── Organization members ────────────────────────────────────────────
     case OrganizationMemberView = 'organization_member.view';
@@ -98,6 +100,16 @@ enum Permission: string
     case ApiManageKeys = 'api.manage-keys';
     case WebhookManage = 'webhook.manage';
 
+    // ── Audit + Compliance ──────────────────────────────────────────────
+    case AuditLogView = 'audit_log.view';
+    case AuditLogExport = 'audit_log.export';
+    case DataExportRequest = 'data.export-request';
+    case GdprRequestProcess = 'data.gdpr-process';
+
+    // ── Integrations + OAuth ────────────────────────────────────────────
+    case IntegrationManage = 'integration.manage';
+    case OAuthAppManage = 'oauth_app.manage';
+
     /**
      * Resource bucket used by the role-editor UI to group checkboxes.
      */
@@ -120,6 +132,10 @@ enum Permission: string
             'finance' => 'Finance',
             'api' => 'Developer',
             'webhook' => 'Developer',
+            'audit_log' => 'Audit',
+            'data' => 'Compliance',
+            'integration' => 'Integrations',
+            'oauth_app' => 'Integrations',
         ][explode('.', $this->value)[0]] ?? 'Other';
     }
 
@@ -135,6 +151,8 @@ enum Permission: string
             self::OrganizationDelete => 'Delete organization',
             self::OrganizationTransferOwnership => 'Transfer ownership',
             self::OrganizationManageBilling => 'Manage billing',
+            self::OrganizationManageBrand => 'Manage brand kit',
+            self::OrganizationManageDomain => 'Manage custom domain',
             self::OrganizationMemberView => 'View members',
             self::OrganizationMemberInvite => 'Invite members',
             self::OrganizationMemberUpdateRole => 'Change member roles',
@@ -186,6 +204,12 @@ enum Permission: string
             self::FinanceExportReports => 'Export financial reports',
             self::ApiManageKeys => 'Manage API keys',
             self::WebhookManage => 'Manage webhooks',
+            self::AuditLogView => 'View audit log',
+            self::AuditLogExport => 'Export audit log',
+            self::DataExportRequest => 'Request data exports',
+            self::GdprRequestProcess => 'Process GDPR requests',
+            self::IntegrationManage => 'Manage integrations',
+            self::OAuthAppManage => 'Manage OAuth apps',
         };
     }
 

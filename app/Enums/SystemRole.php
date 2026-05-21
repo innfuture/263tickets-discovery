@@ -91,6 +91,7 @@ enum SystemRole: string
                 Permission::TicketView,
                 Permission::AttendeeView, Permission::AttendeeContact,
                 Permission::AnalyticsViewEvent,
+                Permission::AuditLogView,
             ],
 
             self::BoxOfficeManager => [
@@ -108,12 +109,14 @@ enum SystemRole: string
 
             self::MarketingManager => [
                 Permission::OrganizationView, Permission::OrganizationUpdate,
+                Permission::OrganizationManageBrand, Permission::OrganizationManageDomain,
                 Permission::TeamView,
                 Permission::EventView,
                 Permission::EventMediaManage, Permission::EventSponsorsManage, Permission::EventLineupManage,
                 Permission::AdCampaignCreate, Permission::AdCampaignView, Permission::AdCampaignUpdate,
                 Permission::AdCampaignPause, Permission::AdCampaignDelete, Permission::AdCampaignViewMetrics,
                 Permission::AnalyticsViewEvent, Permission::AnalyticsViewOrg,
+                Permission::IntegrationManage,
             ],
 
             self::FinanceManager => [
@@ -126,6 +129,8 @@ enum SystemRole: string
                 Permission::AnalyticsViewEvent, Permission::AnalyticsViewOrg, Permission::AnalyticsExport,
                 Permission::FinanceViewRevenue, Permission::FinanceProcessRefund,
                 Permission::FinanceExportReports,
+                Permission::AuditLogView, Permission::AuditLogExport,
+                Permission::DataExportRequest,
             ],
 
             self::SupportAgent => [

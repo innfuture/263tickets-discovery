@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'workos_id', 'avatar', 'current_team_id', 'current_organization_id'])]
+#[Fillable(['name', 'email', 'workos_id', 'avatar', 'current_team_id', 'current_organization_id', 'notification_preferences'])]
 #[Hidden(['workos_id', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -30,6 +30,39 @@ class User extends Authenticatable
     }
 
     /**
+     * Default notification toggle map applied when the user has never
+     * touched their preferences. Each key corresponds to a future
+     * notification trigger.
+     *
+     * @return array<string, bool>
+     */
+    public static function notificationDefaults(): array
+    {
+        return [
+            'sale.new' => true,
+            'refund.processed' => true,
+            'inventory.low' => true,
+            'payout.received' => true,
+            'digest.daily' => false,
+            'digest.weekly' => true,
+        ];
+    }
+
+    /**
+     * Resolve effective preferences: user's stored map merged over the
+     * defaults so newly added triggers default to their declared value.
+     *
+     * @return array<string, bool>
+     */
+    public function effectiveNotificationPreferences(): array
+    {
+        return array_merge(
+            self::notificationDefaults(),
+            (array) ($this->notification_preferences ?? []),
+        );
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -39,6 +72,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'notification_preferences' => 'array',
         ];
     }
 }
