@@ -7,7 +7,7 @@ use App\Http\Requests\Tickets\AdjustTicketInventoryRequest;
 use App\Http\Requests\Tickets\StoreTicketCategoryRequest;
 use App\Http\Requests\Tickets\UpdateTicketCategoryRequest;
 use App\Models\Event;
-use App\Models\Team;
+use App\Models\Organization;
 use App\Models\TicketCategory;
 use App\Services\ImageProcessingService;
 use App\Services\TicketService;
@@ -22,9 +22,9 @@ class TicketCategoryController extends Controller
         private readonly TicketService $ticketService,
     ) {}
 
-    public function index(string $current_team, Event $event): JsonResponse
+    public function index(string $current_organization, Event $event): JsonResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $categories = $event->ticketCategories()
             ->with(['currencyPrices', 'discounts', 'promoCodes'])
@@ -36,11 +36,11 @@ class TicketCategoryController extends Controller
 
     public function store(
         StoreTicketCategoryRequest $request,
-        string $current_team,
+        string $current_organization,
         Event $event,
         ImageProcessingService $imageService,
     ): RedirectResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $data = $request->validated();
 
@@ -64,12 +64,12 @@ class TicketCategoryController extends Controller
 
     public function update(
         UpdateTicketCategoryRequest $request,
-        string $current_team,
+        string $current_organization,
         Event $event,
         TicketCategory $category,
         ImageProcessingService $imageService,
     ): RedirectResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $data = $request->validated();
@@ -95,9 +95,9 @@ class TicketCategoryController extends Controller
         ]);
     }
 
-    public function destroy(string $current_team, Event $event, TicketCategory $category): RedirectResponse
+    public function destroy(string $current_organization, Event $event, TicketCategory $category): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $this->ticketService->deleteCategory($category);
@@ -119,11 +119,11 @@ class TicketCategoryController extends Controller
      */
     public function adjust(
         AdjustTicketInventoryRequest $request,
-        string $current_team,
+        string $current_organization,
         Event $event,
         TicketCategory $category,
     ): RedirectResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $data = $request->validated();
@@ -154,9 +154,9 @@ class TicketCategoryController extends Controller
         ]);
     }
 
-    public function generationStatus(string $current_team, Event $event, TicketCategory $category): JsonResponse
+    public function generationStatus(string $current_organization, Event $event, TicketCategory $category): JsonResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $category->refresh();
@@ -167,9 +167,9 @@ class TicketCategoryController extends Controller
         ]);
     }
 
-    public function updateSaleStatus(Request $request, string $current_team, Event $event, TicketCategory $category): RedirectResponse
+    public function updateSaleStatus(Request $request, string $current_organization, Event $event, TicketCategory $category): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $data = $request->validate([
@@ -184,9 +184,9 @@ class TicketCategoryController extends Controller
         ]);
     }
 
-    public function storeDiscount(Request $request, string $current_team, Event $event, TicketCategory $category): RedirectResponse
+    public function storeDiscount(Request $request, string $current_organization, Event $event, TicketCategory $category): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $data = $request->validate([
@@ -206,9 +206,9 @@ class TicketCategoryController extends Controller
         ]);
     }
 
-    public function storePromoCode(Request $request, string $current_team, Event $event, TicketCategory $category): RedirectResponse
+    public function storePromoCode(Request $request, string $current_organization, Event $event, TicketCategory $category): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($category->event_id === $event->id, 404);
 
         $data = $request->validate([
@@ -228,10 +228,10 @@ class TicketCategoryController extends Controller
         ]);
     }
 
-    private function authoriseEvent(string $teamSlug, Event $event): void
+    private function authoriseEvent(string $orgSlug, Event $event): void
     {
-        $team = Team::where('slug', $teamSlug)->firstOrFail();
-        abort_unless($event->organisation_id === $team->uuid, 403);
+        $org = Organization::where('slug', $orgSlug)->firstOrFail();
+        abort_unless($event->organisation_id === $org->uuid, 403);
     }
 
     /** @return array<string, mixed> */

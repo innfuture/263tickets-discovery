@@ -1,4 +1,5 @@
 import type { Auth } from '@/types/auth';
+import type { Organization } from '@/types/organizations';
 import type { Team } from '@/types/teams';
 
 declare module 'react' {
@@ -14,8 +15,16 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+
+            // Top of the hierarchy — active organization and the
+            // viewer's org memberships.
+            currentOrganization: Organization | null;
+            organizations: Organization[];
+
+            // Sub-team layer within the active organization.
             currentTeam: Team | null;
             teams: Team[];
+
             [key: string]: unknown;
         };
     }

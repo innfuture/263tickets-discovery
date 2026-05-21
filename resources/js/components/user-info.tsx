@@ -1,18 +1,26 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
+import type { Organization } from '@/types/organizations';
 import type { Team, User } from '@/types';
 
 export function UserInfo({
     user,
     showEmail = false,
+    organization = null,
     team = null,
 }: {
     user: User;
     showEmail?: boolean;
+    organization?: Organization | null;
     team?: Team | null;
 }) {
     const getInitials = useInitials();
     const showAvatar = Boolean(user.avatar && user.avatar !== '');
+
+    // Org takes precedence in the sidebar subtitle — it's the
+    // primary tenancy context the user is acting under. Team is
+    // shown only if no org is passed (e.g. legacy callsites).
+    const subtitle = organization?.name ?? team?.name ?? null;
 
     return (
         <>
@@ -26,12 +34,12 @@ export function UserInfo({
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                {team ? (
+                {subtitle ? (
                     <span className="truncate text-xs text-muted-foreground">
-                        {team.name}
+                        {subtitle}
                     </span>
                 ) : null}
-                {!team && showEmail ? (
+                {!subtitle && showEmail ? (
                     <span className="truncate text-xs text-muted-foreground">
                         {user.email}
                     </span>

@@ -1,5 +1,10 @@
 export type TeamRole = 'owner' | 'admin' | 'member';
 
+/**
+ * Sub-team within an Organization. Profile fields (logo, address,
+ * social) live on Organization — a Team is just a scoped member
+ * grouping inside one. See types/organizations for the parent shape.
+ */
 export type Team = {
     id: number;
     name: string;
@@ -17,14 +22,6 @@ export type TeamMember = {
     avatar?: string | null;
     role: TeamRole;
     role_label: string;
-};
-
-export type TeamInvitation = {
-    code: string;
-    email: string;
-    role: TeamRole;
-    role_label: string;
-    created_at: string;
 };
 
 export type TeamPermissions = {

@@ -5,16 +5,16 @@ namespace App\Http\Controllers;
 use App\Http\Middleware\TrackEventPageView;
 use App\Models\Event;
 use App\Models\EventPageView;
-use App\Models\Team;
+use App\Models\Organization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class EventAnalyticsController extends Controller
 {
-    public function index(string $current_team, Event $event): JsonResponse
+    public function index(string $current_organization, Event $event): JsonResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $days = 30;
         $from = now()->subDays($days)->startOfDay();
@@ -88,9 +88,9 @@ class EventAnalyticsController extends Controller
         ]);
     }
 
-    public function track(Request $request, string $current_team, Event $event): JsonResponse
+    public function track(Request $request, string $current_organization, Event $event): JsonResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $data = $request->validate([
             'event_type' => ['required', 'string', 'in:click,conversion,view_section,share,bookmark'],
@@ -122,9 +122,9 @@ class EventAnalyticsController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function authoriseEvent(string $teamSlug, Event $event): void
+    private function authoriseEvent(string $orgSlug, Event $event): void
     {
-        $team = Team::where('slug', $teamSlug)->firstOrFail();
-        abort_unless($event->organisation_id === $team->uuid, 403);
+        $org = Organization::where('slug', $orgSlug)->firstOrFail();
+        abort_unless($event->organisation_id === $org->uuid, 403);
     }
 }

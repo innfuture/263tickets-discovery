@@ -65,8 +65,8 @@ export function EventLineupManager({
         is_headliner: boolean;
     }>;
 }) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const teamSlug = page.props.currentOrganization?.slug ?? '';
     const photoUploadUrl = `/${teamSlug}/events/${eventSlug}/lineup/photo`;
 
     const [artists, setArtists] = useState<LineupDraft[]>(

@@ -1,5 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, FolderGit2, LayoutGrid } from 'lucide-react';
+import {
+    BookOpen,
+    CalendarDays,
+    FolderGit2,
+    LayoutGrid,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -14,19 +19,18 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
     const page = usePage();
-    const dashboardUrl = page.props.currentTeam
-        ? dashboard(page.props.currentTeam.slug)
-        : '/';
+    const orgSlug = page.props.currentOrganization?.slug;
 
-    const eventsUrl = page.props.currentTeam
-        ? `/${page.props.currentTeam.slug}/events`
-        : '/';
+    const dashboardUrl = orgSlug ? `/${orgSlug}/dashboard` : '/';
+    const eventsUrl = orgSlug ? `/${orgSlug}/events` : '/';
 
+    // "Organization" intentionally NOT in the main nav — it lives
+    // under the User Icon dropdown → Settings → Organization (which
+    // is the first tab on the settings page).
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',

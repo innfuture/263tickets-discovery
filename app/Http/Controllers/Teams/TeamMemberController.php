@@ -13,9 +13,6 @@ use Inertia\Inertia;
 
 class TeamMemberController extends Controller
 {
-    /**
-     * Update the specified team member's role.
-     */
     public function update(UpdateTeamMemberRequest $request, Team $team, User $user): RedirectResponse
     {
         Gate::authorize('updateMember', $team);
@@ -32,9 +29,6 @@ class TeamMemberController extends Controller
         return to_route('teams.edit', ['team' => $team->slug]);
     }
 
-    /**
-     * Remove the specified team member.
-     */
     public function destroy(Team $team, User $user): RedirectResponse
     {
         Gate::authorize('removeMember', $team);

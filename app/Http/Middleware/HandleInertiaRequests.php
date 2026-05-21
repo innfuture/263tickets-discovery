@@ -16,21 +16,12 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
     /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
      * @return array<string, mixed>
      */
     public function share(Request $request): array
@@ -44,7 +35,22 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,
+
+            // Top-of-hierarchy: the org the viewer is acting on.
+            // Drives the URL prefix, the public profile link, and the
+            // /settings/organization page.
+            'currentOrganization' => fn () => $user?->currentOrganization
+                ? $user->toUserOrganization($user->currentOrganization)
+                : null,
+            'organizations' => fn () => $user?->toUserOrganizations(includeCurrent: true) ?? [],
+
+            // Inner tier: the sub-team active within the current org.
+            // Some pages still depend on team-scoped context (e.g.
+            // attribution on a created resource); keep both layers
+            // shipped so frontend can render switchers for either.
+            'currentTeam' => fn () => $user?->currentTeam
+                ? $user->toUserTeam($user->currentTeam)
+                : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
         ];
     }

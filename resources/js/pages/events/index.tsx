@@ -178,8 +178,8 @@ export default function EventsIndex({
     visibilities,
     categories,
 }: Props) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const slug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const slug = page.props.currentOrganization?.slug ?? '';
     const eventsUrl = `/${slug}/events`;
 
     const [local, setLocal] = useState<Filters>(filters);
@@ -605,11 +605,11 @@ function CapacityBar({
     );
 }
 
-EventsIndex.layout = (props: { currentTeam?: { slug: string } | null }) => ({
+EventsIndex.layout = (props: { currentOrganization?: { slug: string } | null }) => ({
     breadcrumbs: [
         {
             title: 'My Events',
-            href: props.currentTeam ? `/${props.currentTeam.slug}/events` : '/',
+            href: props.currentOrganization ? `/${props.currentOrganization.slug}/events` : '/',
         },
     ],
 });

@@ -2,12 +2,18 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { useFlashToast } from '@/hooks/use-flash-toast';
 import type { AppLayoutProps } from '@/types';
 
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: AppLayoutProps) {
+    // Bridges server-side `Inertia::flash('toast', ...)` payloads into
+    // sonner notifications — every controller already emits these
+    // after writes, but they had nowhere to land until now.
+    useFlashToast();
+
     return (
         <AppShell variant="sidebar">
             <AppSidebar />

@@ -24,8 +24,8 @@ export function EventMediaManager({
     eventSlug: string;
     items: MediaItem[];
 }) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const teamSlug = page.props.currentOrganization?.slug ?? '';
     const uploadUrl = `/${teamSlug}/events/${eventSlug}/media`;
     const confirm = useConfirm();
 

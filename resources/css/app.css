@@ -300,3 +300,96 @@
     --font-heading:
         var(--font-sans);
 }
+
+/* react-international-phone — mirror shadcn's Input look (height,
+ * border, radius, focus ring, palette) so the package doesn't pop
+ * out of any form it lands in.
+ *
+ * The wrapper itself is `position: relative` and the country-selector
+ * dropdown is `position: absolute` so opening the picker floats over
+ * downstream form content instead of expanding the field's container.
+ */
+.react-intl-phone-shadcn {
+    --react-international-phone-height: 2.25rem; /* h-9 — shadcn Input */
+    --react-international-phone-background-color: var(--background);
+    --react-international-phone-text-color: var(--foreground);
+    --react-international-phone-border-color: var(--input);
+    --react-international-phone-border-radius: var(--radius-md);
+    --react-international-phone-font-size: 0.875rem;
+    --react-international-phone-flag-width: 1.25rem;
+    --react-international-phone-flag-height: 1.25rem;
+    --react-international-phone-country-selector-background-color: var(--background);
+    --react-international-phone-country-selector-background-color-hover: var(--accent);
+    --react-international-phone-disabled-background-color: var(--muted);
+    --react-international-phone-disabled-text-color: var(--muted-foreground);
+    --react-international-phone-dropdown-item-background-color: var(--popover);
+    --react-international-phone-dropdown-item-text-color: var(--popover-foreground);
+    --react-international-phone-dropdown-item-background-color-hover: var(--accent);
+    --react-international-phone-dropdown-item-background-color-selected: var(--accent);
+    --react-international-phone-dropdown-item-dial-code-color: var(--muted-foreground);
+    --react-international-phone-dropdown-item-text-color-selected: var(--popover-foreground);
+    --react-international-phone-selected-dropdown-item-background-color: var(--accent);
+    --react-international-phone-selected-dropdown-item-text-color: var(--accent-foreground);
+    --react-international-phone-dropdown-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+    --react-international-phone-dropdown-border-color: var(--border);
+    --react-international-phone-selected-dropdown-zindex: 50;
+    position: relative;
+    display: inline-flex;
+    width: 100%;
+}
+
+/* Text input — match shadcn Input chrome (bg, border, focus ring). */
+.react-intl-phone-shadcn .react-international-phone-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    border-color: var(--input);
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+}
+
+/* Country selector button — same bg/border palette as the input. */
+.react-intl-phone-shadcn .react-international-phone-country-selector-button {
+    background-color: var(--background);
+    border-color: var(--input);
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+}
+
+/* Focus ring matches shadcn's Input focus-visible look. */
+.react-intl-phone-shadcn .react-international-phone-input:focus,
+.react-intl-phone-shadcn
+    .react-international-phone-country-selector-button:focus,
+.react-intl-phone-shadcn
+    .react-international-phone-country-selector-button[data-state='open'] {
+    outline: 2px solid var(--ring);
+    outline-offset: -1px;
+}
+
+/* Floating dropdown — absolute, layered above form content, popover
+ * background + border, scrollable list. Without these overrides the
+ * dropdown was rendering inline-flow and pushing siblings down. */
+.react-intl-phone-shadcn .react-international-phone-country-selector-dropdown {
+    position: absolute;
+    top: calc(var(--react-international-phone-height) + 4px);
+    left: 0;
+    z-index: 50;
+    width: max-content;
+    max-width: 18rem;
+    max-height: 18rem;
+    overflow-y: auto;
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+/* Error state — both halves of the field carry the destructive border. */
+.react-intl-phone-shadcn.react-intl-phone-error
+    .react-international-phone-input,
+.react-intl-phone-shadcn.react-intl-phone-error
+    .react-international-phone-country-selector-button {
+    border-color: var(--destructive);
+}

@@ -13,14 +13,14 @@ Route::middleware(['guest'])->group(function () {
         $request->authenticate();
 
         $user = auth()->user();
-        $currentTeam = $user->currentTeam ?? $user->personalTeam();
+        $currentOrg = $user->currentOrganization ?? $user->personalOrganization();
 
-        if ($currentTeam && ! $user->current_team_id) {
-            $user->switchTeam($currentTeam);
+        if ($currentOrg && ! $user->current_organization_id) {
+            $user->switchOrganization($currentOrg);
         }
 
-        if ($currentTeam) {
-            URL::defaults(['current_team' => $currentTeam->slug]);
+        if ($currentOrg) {
+            URL::defaults(['current_organization' => $currentOrg->slug]);
         }
 
         return redirect()->intended(route('dashboard'));

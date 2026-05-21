@@ -8,20 +8,33 @@ use Database\Factories\TeamFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
-#[Fillable(['name', 'slug', 'is_personal'])]
+/**
+ * Sub-team under an Organization. The hierarchy is
+ * Organization → Teams → Members; a team is a scoped grouping of
+ * users *within* an org (a department, a chapter, a project squad).
+ *
+ * All brand/profile fields used to live on this table — they moved
+ * to the `organizations` row during the introduce_organizations
+ * split migration. What remains is the minimum needed to identify
+ * and authorise a team.
+ */
+#[Fillable([
+    'organization_id',
+    'name',
+    'description',
+    'slug',
+    'is_personal',
+])]
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
     use GeneratesUniqueTeamSlugs, HasFactory, SoftDeletes;
 
-    /**
-     * Bootstrap the model and its traits.
-     */
     protected static function boot(): void
     {
         parent::boot();
@@ -29,10 +42,6 @@ class Team extends Model
         static::creating(function (Team $team) {
             if (empty($team->slug)) {
                 $team->slug = static::generateUniqueTeamSlug($team->name);
-            }
-
-            if (empty($team->uuid)) {
-                $team->uuid = (string) Str::uuid();
             }
         });
 
@@ -44,8 +53,13 @@ class Team extends Model
     }
 
     /**
-     * Get the team owner.
+     * @return BelongsTo<Organization, $this>
      */
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
     public function owner(): ?Model
     {
         return $this->members()
@@ -54,9 +68,7 @@ class Team extends Model
     }
 
     /**
-     * Get all members of this team.
-     *
-     * @return BelongsToMany<Model, $this>
+     * @return BelongsToMany<User, $this>
      */
     public function members(): BelongsToMany
     {
@@ -67,8 +79,6 @@ class Team extends Model
     }
 
     /**
-     * Get all memberships for this team.
-     *
      * @return HasMany<Membership, $this>
      */
     public function memberships(): HasMany
@@ -77,18 +87,6 @@ class Team extends Model
     }
 
     /**
-     * Get all invitations for this team.
-     *
-     * @return HasMany<TeamInvitation, $this>
-     */
-    public function invitations(): HasMany
-    {
-        return $this->hasMany(TeamInvitation::class);
-    }
-
-    /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -98,9 +96,6 @@ class Team extends Model
         ];
     }
 
-    /**
-     * Get the route key for the model.
-     */
     public function getRouteKeyName(): string
     {
         return 'slug';

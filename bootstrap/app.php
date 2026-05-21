@@ -2,11 +2,14 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\SetTeamUrlDefaults;
+use App\Http\Middleware\SetOrganizationUrlDefaults;
+use App\Listeners\CreatePersonalOrganization;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Support\Facades\Event;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,8 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            SetTeamUrlDefaults::class,
+            SetOrganizationUrlDefaults::class,
         ]);
+    })
+    ->booted(function (): void {
+        Event::listen(Registered::class, CreatePersonalOrganization::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

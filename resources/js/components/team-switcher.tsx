@@ -1,6 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { Check, ChevronsUpDown, Plus, Users } from 'lucide-react';
-import CreateTeamModal from '@/components/create-team-modal';
+import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -11,9 +10,14 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { switchMethod } from '@/routes/teams';
-import type { Team } from '@/types';
+import type { Organization } from '@/types/organizations';
 
+/**
+ * Switches the viewer's active Organization. Sits at the top of the
+ * sidebar; despite the legacy `TeamSwitcher` filename, the entity it
+ * toggles is the org — that's what scopes the URL prefix and what
+ * every page binds against post-refactor.
+ */
 type TeamSwitcherProps = {
     inHeader?: boolean;
 };
@@ -21,25 +25,26 @@ type TeamSwitcherProps = {
 export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
     const page = usePage();
     const isMobile = useIsMobile();
-    const currentTeam = page.props.currentTeam;
-    const teams = page.props.teams ?? [];
+    const current = page.props.currentOrganization;
+    const orgs = page.props.organizations ?? [];
 
-    const switchTeam = (team: Team) => {
-        const previousTeamSlug = currentTeam?.slug;
+    const switchOrg = (org: Organization) => {
+        const previousSlug = current?.slug;
 
-        router.visit(switchMethod(team.slug), {
+        router.visit(`/settings/organizations/${org.slug}/switch`, {
+            method: 'post',
             onFinish: () => {
-                if (!previousTeamSlug || typeof window === 'undefined') {
+                if (!previousSlug || typeof window === 'undefined') {
                     router.reload();
 
                     return;
                 }
 
                 const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-                const segment = `/${previousTeamSlug}`;
+                const segment = `/${previousSlug}`;
 
                 if (currentUrl.includes(segment)) {
-                    router.visit(currentUrl.replace(segment, `/${team.slug}`), {
+                    router.visit(currentUrl.replace(segment, `/${org.slug}`), {
                         replace: true,
                     });
 
@@ -63,7 +68,7 @@ export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
                             : 'w-full justify-start px-2 has-[>svg]:px-2 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
                     }
                 >
-                    <Users
+                    <Building2
                         className={
                             inHeader
                                 ? 'hidden'
@@ -84,7 +89,7 @@ export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
                                     : 'truncate font-semibold'
                             }
                         >
-                            {currentTeam?.name ?? 'Select team'}
+                            {current?.name ?? 'Select organization'}
                         </span>
                     </div>
                     <ChevronsUpDown
@@ -107,21 +112,21 @@ export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
                 sideOffset={inHeader ? undefined : 4}
             >
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Teams
+                    Organizations
                 </DropdownMenuLabel>
-                {teams.map((team) => (
+                {orgs.map((org) => (
                     <DropdownMenuItem
-                        key={team.id}
+                        key={org.id}
                         data-test="team-switcher-item"
                         className={
                             inHeader
                                 ? 'cursor-pointer gap-2'
                                 : 'cursor-pointer gap-2 p-2'
                         }
-                        onSelect={() => switchTeam(team)}
+                        onSelect={() => switchOrg(org)}
                     >
-                        {team.name}
-                        {currentTeam?.id === team.id && (
+                        {org.name}
+                        {current?.id === org.id && (
                             <Check
                                 className={
                                     inHeader
@@ -133,20 +138,21 @@ export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
                     </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <CreateTeamModal>
-                    <DropdownMenuItem
-                        data-test="team-switcher-new-team"
-                        className={
-                            inHeader
-                                ? 'cursor-pointer gap-2'
-                                : 'cursor-pointer gap-2 p-2'
-                        }
-                        onSelect={(event) => event.preventDefault()}
-                    >
+                <DropdownMenuItem
+                    asChild
+                    className={
+                        inHeader
+                            ? 'cursor-pointer gap-2'
+                            : 'cursor-pointer gap-2 p-2'
+                    }
+                >
+                    <a href="/settings/organizations">
                         <Plus className={inHeader ? 'size-4' : 'h-4 w-4'} />
-                        <span className="text-muted-foreground">New team</span>
-                    </DropdownMenuItem>
-                </CreateTeamModal>
+                        <span className="text-muted-foreground">
+                            Manage organizations
+                        </span>
+                    </a>
+                </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );

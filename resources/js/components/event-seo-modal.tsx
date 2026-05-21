@@ -95,8 +95,8 @@ export function EventSeoModal({
     eventBannerUrl?: string | null;
     eventSlug: string;
 }>) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const teamSlug = page.props.currentOrganization?.slug ?? '';
     const action = `/${teamSlug}/events/${eventSlug}/seo`;
 
     const [open, setOpen] = useState(false);

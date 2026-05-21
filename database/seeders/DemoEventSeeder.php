@@ -22,13 +22,13 @@ class DemoEventSeeder extends Seeder
             );
         }
 
-        $team = $user->currentTeam
-            ?? $user->personalTeam()
-            ?? $user->teams()->first();
+        $organization = $user->currentOrganization
+            ?? $user->personalOrganization()
+            ?? $user->organizations()->first();
 
-        if (! $team) {
+        if (! $organization) {
             throw new RuntimeException(
-                "User {$user->email} has no team. Create or join a team first.",
+                "User {$user->email} has no organization. Create or join one first.",
             );
         }
 
@@ -45,7 +45,7 @@ class DemoEventSeeder extends Seeder
         $event = Event::updateOrCreate(
             ['slug' => 'harare-spring-music-festival-2026'],
             [
-                'organisation_id' => $team->uuid,
+                'organisation_id' => $organization->uuid,
                 'created_by_user_id' => $user->id,
                 'category_id' => $category->id,
 
@@ -106,9 +106,9 @@ class DemoEventSeeder extends Seeder
         $event->reconcileTicketsSold(1247);
 
         $this->command?->info(sprintf(
-            'Demo event seeded: %s (team: %s, slug: %s)',
+            'Demo event seeded: %s (organization: %s, slug: %s)',
             $event->name,
-            $team->slug,
+            $organization->slug,
             $event->slug,
         ));
     }

@@ -15,11 +15,19 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\URL;
 
+/**
+ * Sub-team membership concern. Pairs with HasOrganizations — that one
+ * is the top-of-hierarchy (which orgs the user belongs to and which
+ * one is active), this one scopes the inner tier (which teams within
+ * the active org the user belongs to, with their per-team role).
+ *
+ * Every team belongs to exactly one org; nothing in here filters by
+ * the user's current org because the caller already has a Team
+ * reference, which transitively names its org via `team->organization`.
+ */
 trait HasTeams
 {
     /**
-     * Get all of the teams the user belongs to.
-     *
      * @return BelongsToMany<Team, $this>
      */
     public function teams(): BelongsToMany
@@ -30,8 +38,6 @@ trait HasTeams
     }
 
     /**
-     * Get all of the teams the user owns.
-     *
      * @return HasManyThrough<Team, Membership, $this>
      */
     public function ownedTeams(): HasManyThrough
@@ -47,8 +53,6 @@ trait HasTeams
     }
 
     /**
-     * Get all of the memberships for the user.
-     *
      * @return HasMany<Membership, $this>
      */
     public function teamMemberships(): HasMany
@@ -57,8 +61,6 @@ trait HasTeams
     }
 
     /**
-     * Get the user's current team.
-     *
      * @return BelongsTo<Team, $this>
      */
     public function currentTeam(): BelongsTo
@@ -66,9 +68,6 @@ trait HasTeams
         return $this->belongsTo(Team::class, 'current_team_id');
     }
 
-    /**
-     * Get the user's personal team.
-     */
     public function personalTeam(): ?Team
     {
         return $this->teams()
@@ -76,9 +75,6 @@ trait HasTeams
             ->first();
     }
 
-    /**
-     * Switch to the given team.
-     */
     public function switchTeam(Team $team): bool
     {
         if (! $this->belongsToTeam($team)) {
@@ -93,33 +89,21 @@ trait HasTeams
         return true;
     }
 
-    /**
-     * Determine if the user belongs to the given team.
-     */
     public function belongsToTeam(Team $team): bool
     {
         return $this->teams()->where('teams.id', $team->id)->exists();
     }
 
-    /**
-     * Determine if the given team is the user's current team.
-     */
     public function isCurrentTeam(Team $team): bool
     {
         return $this->current_team_id === $team->id;
     }
 
-    /**
-     * Determine if the user is the owner of the given team.
-     */
     public function ownsTeam(Team $team): bool
     {
         return $this->teamRole($team) === TeamRole::Owner;
     }
 
-    /**
-     * Get the user's role on the given team.
-     */
     public function teamRole(Team $team): ?TeamRole
     {
         return $this->teamMemberships()
@@ -129,8 +113,6 @@ trait HasTeams
     }
 
     /**
-     * Get the user's teams as a collection of UserTeam objects.
-     *
      * @return Collection<int, UserTeam>
      */
     public function toUserTeams(bool $includeCurrent = false): Collection
@@ -142,9 +124,6 @@ trait HasTeams
             ->values();
     }
 
-    /**
-     * Get the user's team as a UserTeam object.
-     */
     public function toUserTeam(Team $team): UserTeam
     {
         $role = $this->teamRole($team);
@@ -153,16 +132,13 @@ trait HasTeams
             id: $team->id,
             name: $team->name,
             slug: $team->slug,
-            isPersonal: $team->is_personal,
+            isPersonal: (bool) $team->is_personal,
             role: $role?->value,
             roleLabel: $role?->label(),
             isCurrent: $this->isCurrentTeam($team),
         );
     }
 
-    /**
-     * Get the standard permissions for a team as a TeamPermissions object.
-     */
     public function toTeamPermissions(Team $team): TeamPermissions
     {
         $role = $this->teamRole($team);
@@ -186,9 +162,6 @@ trait HasTeams
             ->first();
     }
 
-    /**
-     * Determine if the user has the given permission on the team.
-     */
     public function hasTeamPermission(Team $team, TeamPermission $permission): bool
     {
         return $this->teamRole($team)?->hasPermission($permission) ?? false;

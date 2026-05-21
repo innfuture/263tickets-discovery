@@ -10,7 +10,7 @@ use App\Enums\SponsorTier;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\EventMediaItem;
-use App\Models\Team;
+use App\Models\Organization;
 use App\Services\ImageProcessingService;
 use App\Services\WeatherForecastService;
 use Illuminate\Http\JsonResponse;
@@ -27,12 +27,12 @@ class EventController extends Controller
 {
     private const PER_PAGE = 24;
 
-    public function index(Request $request, string $current_team): Response
+    public function index(Request $request, string $current_organization): Response
     {
-        $team = Team::where('slug', $current_team)->firstOrFail();
+        $org = Organization::where('slug', $current_organization)->firstOrFail();
 
         $events = Event::query()
-            ->where('organisation_id', $team->uuid)
+            ->where('organisation_id', $org->uuid)
             ->when(
                 $request->string('name')->trim()->value(),
                 fn ($q, $name) => $q->where('name', 'like', "%{$name}%"),
@@ -113,11 +113,11 @@ class EventController extends Controller
     }
 
     public function show(
-        string $current_team,
+        string $current_organization,
         Event $event,
         WeatherForecastService $weatherService,
     ): Response {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $event->load([
             'category',
@@ -169,9 +169,9 @@ class EventController extends Controller
         );
     }
 
-    public function edit(string $current_team, Event $event): Response
+    public function edit(string $current_organization, Event $event): Response
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $event->load([
             'category',
@@ -205,10 +205,10 @@ class EventController extends Controller
 
     public function store(
         SaveEventRequest $request,
-        string $current_team,
+        string $current_organization,
         ImageProcessingService $imageService,
     ): RedirectResponse {
-        $team = Team::where('slug', $current_team)->firstOrFail();
+        $org = Organization::where('slug', $current_organization)->firstOrFail();
 
         $data = $request->safe()->except(['banner_image', 'lineup', 'agenda']);
 
@@ -222,23 +222,23 @@ class EventController extends Controller
 
         Event::create([
             ...$data,
-            'organisation_id' => $team->uuid,
+            'organisation_id' => $org->uuid,
             'created_by_user_id' => $request->user()->id,
             'status' => EventStatus::Draft->value,
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Event created.')]);
 
-        return to_route('events.index', ['current_team' => $current_team]);
+        return to_route('events.index', ['current_organization' => $current_organization]);
     }
 
     public function update(
         SaveEventRequest $request,
-        string $current_team,
+        string $current_organization,
         Event $event,
         ImageProcessingService $imageService,
     ): RedirectResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $data = $request->safe()->except([
             'banner_image',
@@ -286,14 +286,14 @@ class EventController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Event updated.')]);
 
         return to_route('events.show', [
-            'current_team' => $current_team,
+            'current_organization' => $current_organization,
             'event' => $event->fresh()->slug,
         ]);
     }
 
-    public function updateSeo(UpdateSeoRequest $request, string $current_team, Event $event): RedirectResponse
+    public function updateSeo(UpdateSeoRequest $request, string $current_organization, Event $event): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $event->update($request->validated());
 
@@ -302,9 +302,9 @@ class EventController extends Controller
         return back();
     }
 
-    public function storeMedia(Request $request, string $current_team, Event $event): RedirectResponse
+    public function storeMedia(Request $request, string $current_organization, Event $event): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $data = $request->validate([
             'image' => [
@@ -359,11 +359,11 @@ class EventController extends Controller
 
     public function storeLineupPhoto(
         Request $request,
-        string $current_team,
+        string $current_organization,
         Event $event,
         ImageProcessingService $imageService,
     ): JsonResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $request->validate([
             'photo' => [
@@ -393,11 +393,11 @@ class EventController extends Controller
      */
     public function storeSponsorLogo(
         Request $request,
-        string $current_team,
+        string $current_organization,
         Event $event,
         ImageProcessingService $imageService,
     ): JsonResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $request->validate([
             'logo' => [
@@ -490,12 +490,12 @@ class EventController extends Controller
     }
 
     public function destroyMedia(
-        string $current_team,
+        string $current_organization,
         Event $event,
         EventMediaItem $media,
         ImageProcessingService $imageService,
     ): RedirectResponse {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($media->event_id === $event->id, 404);
 
         if ($media->path) {
@@ -509,10 +509,10 @@ class EventController extends Controller
         return back();
     }
 
-    private function authoriseEvent(string $teamSlug, Event $event): void
+    private function authoriseEvent(string $orgSlug, Event $event): void
     {
-        $team = Team::where('slug', $teamSlug)->firstOrFail();
-        abort_unless($event->organisation_id === $team->uuid, 403);
+        $org = Organization::where('slug', $orgSlug)->firstOrFail();
+        abort_unless($event->organisation_id === $org->uuid, 403);
     }
 
     /**

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AdPlatform;
 use App\Models\AdCampaign;
 use App\Models\Event;
-use App\Models\Team;
+use App\Models\Organization;
 use App\Services\AdManagementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,9 +17,9 @@ class AdCampaignController extends Controller
         private readonly AdManagementService $adService,
     ) {}
 
-    public function index(string $current_team, Event $event): JsonResponse
+    public function index(string $current_organization, Event $event): JsonResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $campaigns = $event->adCampaigns()
             ->orderByDesc('created_at')
@@ -35,9 +35,9 @@ class AdCampaignController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $current_team, Event $event): RedirectResponse
+    public function store(Request $request, string $current_organization, Event $event): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -65,9 +65,9 @@ class AdCampaignController extends Controller
         ]);
     }
 
-    public function pause(string $current_team, Event $event, AdCampaign $campaign): RedirectResponse
+    public function pause(string $current_organization, Event $event, AdCampaign $campaign): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($campaign->event_id === $event->id, 404);
 
         $this->adService->pause($campaign);
@@ -75,9 +75,9 @@ class AdCampaignController extends Controller
         return back()->with('toast', ['type' => 'success', 'message' => 'Campaign paused.']);
     }
 
-    public function syncMetrics(string $current_team, Event $event, AdCampaign $campaign): JsonResponse
+    public function syncMetrics(string $current_organization, Event $event, AdCampaign $campaign): JsonResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($campaign->event_id === $event->id, 404);
 
         $campaign = $this->adService->syncMetrics($campaign);
@@ -85,9 +85,9 @@ class AdCampaignController extends Controller
         return response()->json($this->campaignPayload($campaign));
     }
 
-    public function destroy(string $current_team, Event $event, AdCampaign $campaign): RedirectResponse
+    public function destroy(string $current_organization, Event $event, AdCampaign $campaign): RedirectResponse
     {
-        $this->authoriseEvent($current_team, $event);
+        $this->authoriseEvent($current_organization, $event);
         abort_unless($campaign->event_id === $event->id, 404);
 
         $campaign->delete();
@@ -95,10 +95,10 @@ class AdCampaignController extends Controller
         return back()->with('toast', ['type' => 'success', 'message' => 'Campaign removed.']);
     }
 
-    private function authoriseEvent(string $teamSlug, Event $event): void
+    private function authoriseEvent(string $orgSlug, Event $event): void
     {
-        $team = Team::where('slug', $teamSlug)->firstOrFail();
-        abort_unless($event->organisation_id === $team->uuid, 403);
+        $org = Organization::where('slug', $orgSlug)->firstOrFail();
+        abort_unless($event->organisation_id === $org->uuid, 403);
     }
 
     /** @return array<string, mixed> */

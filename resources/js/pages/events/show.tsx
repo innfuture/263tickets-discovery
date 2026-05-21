@@ -362,10 +362,18 @@ function BannerBox({
 }
 
 export default function EventShow({ event, weather }: Props) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{
+        currentOrganization?: {
+            slug: string;
+            name?: string;
+            logoUrl?: string | null;
+            isVerified?: boolean | null;
+        } | null;
+    }>();
+    const teamSlug = page.props.currentOrganization?.slug ?? '';
     const eventsUrl = `/${teamSlug}/events`;
     const editUrl = `${eventsUrl}/${event.slug}/edit`;
+    const organizerProfileUrl = teamSlug ? `/o/${teamSlug}` : null;
     const publicUrl = typeof window !== 'undefined' ? window.location.href : '';
 
     const pct =
@@ -769,6 +777,49 @@ export default function EventShow({ event, weather }: Props) {
 
                     {/* Sticky sidebar (col-span-4) */}
                     <aside className="animate-in space-y-4 delay-100 duration-500 fade-in slide-in-from-right-4 lg:sticky lg:top-4 lg:col-span-4 lg:self-start">
+                        {/* Hosted-by card linking to the public organizer
+                            profile (Eventbrite-style attribution + jump). */}
+                        {organizerProfileUrl && page.props.currentOrganization ? (
+                            <Link
+                                href={organizerProfileUrl}
+                                className="group flex items-center gap-3 rounded-lg border bg-card p-3 transition hover:border-primary/40 hover:shadow-sm"
+                            >
+                                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                                    {page.props.currentOrganization.logoUrl ? (
+                                        <img
+                                            src={page.props.currentOrganization.logoUrl}
+                                            alt=""
+                                            className="size-full object-contain p-0.5"
+                                        />
+                                    ) : (
+                                        <span className="text-xs font-semibold text-primary">
+                                            {(page.props.currentOrganization.name ?? teamSlug)
+                                                .split(/\s+/)
+                                                .slice(0, 2)
+                                                .map((w) => w[0]?.toUpperCase() ?? '')
+                                                .join('')}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                                        Hosted by
+                                    </p>
+                                    <p className="line-clamp-1 text-sm font-semibold group-hover:text-primary">
+                                        {page.props.currentOrganization.name ?? teamSlug}
+                                        {page.props.currentOrganization.isVerified ? (
+                                            <span
+                                                title="Verified organizer"
+                                                className="ml-1 text-emerald-600 dark:text-emerald-400"
+                                            >
+                                                ✓
+                                            </span>
+                                        ) : null}
+                                    </p>
+                                </div>
+                            </Link>
+                        ) : null}
+
                         {/* Action buttons */}
                         <div className="flex flex-wrap items-center gap-2">
                             <Button size="sm" asChild className="flex-1">
@@ -1041,12 +1092,12 @@ function SidebarRow({
 
 EventShow.layout = (props: {
     event?: EventDetail;
-    currentTeam?: { slug: string } | null;
+    currentOrganization?: { slug: string } | null;
 }) => ({
     breadcrumbs: [
         {
             title: 'My Events',
-            href: props.currentTeam ? `/${props.currentTeam.slug}/events` : '/',
+            href: props.currentOrganization ? `/${props.currentOrganization.slug}/events` : '/',
         },
         {
             title: props.event?.name ?? 'Event',

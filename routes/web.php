@@ -3,17 +3,23 @@
 use App\Http\Controllers\AdCampaignController;
 use App\Http\Controllers\EventAnalyticsController;
 use App\Http\Controllers\EventController;
-use App\Http\Controllers\Teams\TeamInvitationController;
+use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\Organizations\OrganizationInvitationController;
 use App\Http\Controllers\TicketCategoryController;
-use App\Http\Middleware\EnsureTeamMembership;
+use App\Http\Middleware\EnsureOrganizationMembership;
 use App\Http\Middleware\TrackEventPageView;
 use Illuminate\Support\Facades\Route;
 use Laravel\WorkOS\Http\Middleware\ValidateSessionWithWorkOS;
 
 Route::inertia('/', 'welcome')->name('home');
 
-Route::prefix('{current_team}')
-    ->middleware(['auth', ValidateSessionWithWorkOS::class, EnsureTeamMembership::class])
+// Everything inside the org scope: dashboard, events, tickets, ads,
+// analytics. The `{current_organization}` slug is the active org's
+// public identifier; EnsureOrganizationMembership both authorises
+// access and swaps the user's active context if they navigated to a
+// different org they belong to.
+Route::prefix('{current_organization}')
+    ->middleware(['auth', ValidateSessionWithWorkOS::class, EnsureOrganizationMembership::class])
     ->group(function () {
         Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
@@ -33,16 +39,6 @@ Route::prefix('{current_team}')
         // ── Ticket categories ──────────────────────────────────────────────────
         Route::get('events/{event:slug}/tickets', [TicketCategoryController::class, 'index'])->name('tickets.index');
         Route::post('events/{event:slug}/tickets', [TicketCategoryController::class, 'store'])->name('tickets.store');
-        // {category:uuid} — public identifier shipped to the frontend is the
-        // UUID column, not the numeric id. Without this explicit binding key
-        // Laravel resolves the param against `id` and 404s on UUID URLs.
-        //
-        // withoutScopedBindings() — declaring an explicit child key triggers
-        // Laravel's implicit child scoping ($event->categories() inferred
-        // from the "category" parameter name), but the relation here is
-        // called ticketCategories. The controller already enforces
-        // `$category->event_id === $event->id` on every action, so we opt
-        // out of the implicit scope rather than aliasing the relation.
         Route::patch('events/{event:slug}/tickets/{category:uuid}', [TicketCategoryController::class, 'update'])
             ->withoutScopedBindings()->name('tickets.update');
         Route::delete('events/{event:slug}/tickets/{category:uuid}', [TicketCategoryController::class, 'destroy'])
@@ -51,8 +47,6 @@ Route::prefix('{current_team}')
             ->withoutScopedBindings()->name('tickets.generation-status');
         Route::patch('events/{event:slug}/tickets/{category:uuid}/sale-status', [TicketCategoryController::class, 'updateSaleStatus'])
             ->withoutScopedBindings()->name('tickets.sale-status');
-        // Inventory adjustment — creates an OfflineTicketBatch (Increase
-        // or Decrease) and dispatches the processor.
         Route::post('events/{event:slug}/tickets/{category:uuid}/adjust', [TicketCategoryController::class, 'adjust'])
             ->withoutScopedBindings()->name('tickets.adjust');
         Route::post('events/{event:slug}/tickets/{category:uuid}/discounts', [TicketCategoryController::class, 'storeDiscount'])
@@ -72,8 +66,15 @@ Route::prefix('{current_team}')
         Route::delete('events/{event:slug}/ads/{campaign}', [AdCampaignController::class, 'destroy'])->name('ads.destroy');
     });
 
+// ── Public organizer profile — Eventbrite-style /o/{slug} ──────────────────
+Route::get('o/{organization:slug}', [OrganizationController::class, 'show'])
+    ->name('organizations.show');
+
+// Org invitation accept (auth, no org scope — the link arrives by email
+// before the recipient has any org context).
 Route::middleware(['auth'])->group(function () {
-    Route::get('invitations/{invitation}/accept', [TeamInvitationController::class, 'accept'])->name('invitations.accept');
+    Route::get('invitations/{invitation}/accept', [OrganizationInvitationController::class, 'accept'])
+        ->name('invitations.accept');
 });
 
 Route::middleware(['auth', ValidateSessionWithWorkOS::class, 'throttle:30,1'])

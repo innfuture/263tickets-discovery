@@ -18,8 +18,11 @@ import { RichTextEditor } from '@/components/rich-text-editor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EmailField } from '@/components/ui/email-field';
+import { FieldLabel } from '@/components/ui/field-label';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PhoneField } from '@/components/ui/phone-field';
 import {
     Select,
     SelectContent,
@@ -149,31 +152,6 @@ function isoToLocalInput(iso: string | null, timezone: string): string {
     return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
 }
 
-function FieldLabel({
-    htmlFor,
-    error,
-    children,
-    optional,
-}: {
-    htmlFor?: string;
-    error?: string | null;
-    children: React.ReactNode;
-    optional?: boolean;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-2">
-            <Label htmlFor={htmlFor}>
-                {children}
-                {optional ? (
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">
-                        (optional)
-                    </span>
-                ) : null}
-            </Label>
-            <FieldError message={error} />
-        </div>
-    );
-}
 
 function Section({
     title,
@@ -200,8 +178,8 @@ function Section({
 }
 
 export default function EventEdit({ event, visibilities, categories }: Props) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const teamSlug = page.props.currentOrganization?.slug ?? '';
     const eventsUrl = `/${teamSlug}/events`;
     const action = `${eventsUrl}/${event.slug}`;
     const showUrl = `${eventsUrl}/${event.slug}`;
@@ -1158,46 +1136,26 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
                                     </Section>
 
                                     <Section title="Contact">
-                                        <div className="grid gap-2">
-                                            <FieldLabel
-                                                htmlFor="event-contact-email"
-                                                error={errors.contact_email}
-                                                optional
-                                            >
-                                                Email
-                                            </FieldLabel>
-                                            <Input
-                                                id="event-contact-email"
-                                                name="contact_email"
-                                                type="email"
-                                                defaultValue={
-                                                    event.contact_email ?? ''
-                                                }
-                                                aria-invalid={
-                                                    !!errors.contact_email
-                                                }
-                                            />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <FieldLabel
-                                                htmlFor="event-contact-phone"
-                                                error={errors.contact_phone}
-                                                optional
-                                            >
-                                                Phone
-                                            </FieldLabel>
-                                            <Input
-                                                id="event-contact-phone"
-                                                name="contact_phone"
-                                                type="tel"
-                                                defaultValue={
-                                                    event.contact_phone ?? ''
-                                                }
-                                                aria-invalid={
-                                                    !!errors.contact_phone
-                                                }
-                                            />
-                                        </div>
+                                        <EmailField
+                                            id="event-contact-email"
+                                            name="contact_email"
+                                            label="Email"
+                                            optional
+                                            defaultValue={event.contact_email}
+                                            error={errors.contact_email}
+                                        />
+                                        <PhoneField
+                                            id="event-contact-phone"
+                                            name="contact_phone"
+                                            label="Phone"
+                                            optional
+                                            defaultCountry={
+                                                event.country_code?.toLowerCase() ??
+                                                'us'
+                                            }
+                                            defaultValue={event.contact_phone}
+                                            error={errors.contact_phone}
+                                        />
                                     </Section>
 
                                     <Card>
@@ -1235,18 +1193,18 @@ export default function EventEdit({ event, visibilities, categories }: Props) {
 
 EventEdit.layout = (props: {
     event?: EventDetail;
-    currentTeam?: { slug: string } | null;
+    currentOrganization?: { slug: string } | null;
 }) => ({
     breadcrumbs: [
         {
             title: 'My Events',
-            href: props.currentTeam ? `/${props.currentTeam.slug}/events` : '/',
+            href: props.currentOrganization ? `/${props.currentOrganization.slug}/events` : '/',
         },
         {
             title: props.event?.name ?? 'Event',
             href:
-                props.currentTeam && props.event
-                    ? `/${props.currentTeam.slug}/events/${props.event.slug}`
+                props.currentOrganization && props.event
+                    ? `/${props.currentOrganization.slug}/events/${props.event.slug}`
                     : '#',
         },
         { title: 'Edit', href: '#' },

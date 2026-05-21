@@ -1,5 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
-import type { PropsWithChildren, ReactNode } from 'react';
+import type { PropsWithChildren } from 'react';
 import { useState } from 'react';
 import { FieldError } from '@/components/field-error';
 import ImageDropzone from '@/components/image-dropzone';
@@ -15,6 +15,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { FieldLabel } from '@/components/ui/field-label';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -57,23 +58,6 @@ function browserTimezone(): string {
     }
 }
 
-function FieldLabel({
-    htmlFor,
-    error,
-    children,
-}: {
-    htmlFor?: string;
-    error?: string | null;
-    children: ReactNode;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-2">
-            <Label htmlFor={htmlFor}>{children}</Label>
-            <FieldError message={error} />
-        </div>
-    );
-}
-
 type CategoryOption = { id: number; name: string; slug: string };
 
 export default function CreateEventModal({
@@ -84,8 +68,8 @@ export default function CreateEventModal({
     visibilities: EnumOption[];
     categories: CategoryOption[];
 }>) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const slug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const slug = page.props.currentOrganization?.slug ?? '';
     const action = `/${slug}/events`;
 
     const [open, setOpen] = useState(false);

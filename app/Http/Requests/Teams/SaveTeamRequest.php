@@ -17,6 +17,10 @@ class SaveTeamRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', new TeamName],
+            // Optional short description shown on the team card and on
+            // the team-edit page. 180-char ceiling matches the event
+            // short_description budget.
+            'description' => ['nullable', 'string', 'max:180'],
         ];
     }
 }

@@ -64,8 +64,8 @@ export function EventSponsorsManager({
     initial: SponsorInitial[];
     tiers: SponsorTierOption[];
 }) {
-    const page = usePage<{ currentTeam?: { slug: string } | null }>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
+    const page = usePage<{ currentOrganization?: { slug: string } | null }>();
+    const teamSlug = page.props.currentOrganization?.slug ?? '';
     const logoUploadUrl = `/${teamSlug}/events/${eventSlug}/sponsors/logo`;
 
     const defaultTier =
