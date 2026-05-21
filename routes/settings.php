@@ -4,6 +4,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\Organizations\OrganizationInvitationController;
 use App\Http\Controllers\Organizations\OrganizationMemberController;
 use App\Http\Controllers\Organizations\OrganizationSettingsController;
+use App\Http\Controllers\Organizations\RoleController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamMemberController;
@@ -40,6 +41,13 @@ Route::middleware([
 
     Route::post('settings/organizations/{organization:slug}/invitations', [OrganizationInvitationController::class, 'store'])->name('organizations.invitations.store');
     Route::delete('settings/organizations/{organization:slug}/invitations/{invitation}', [OrganizationInvitationController::class, 'destroy'])->name('organizations.invitations.destroy');
+
+    // ── Roles &amp; Permissions (org-scoped RBAC catalogue) ──────────────
+    Route::get('settings/roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::post('settings/roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::get('settings/roles/{role}', [RoleController::class, 'show'])->name('roles.show');
+    Route::patch('settings/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('settings/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
 
     // ── Teams (sub-teams within the viewer's current organization) ────
     Route::get('settings/teams', [TeamController::class, 'index'])->name('teams.index');

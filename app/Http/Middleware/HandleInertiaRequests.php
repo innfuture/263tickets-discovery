@@ -52,6 +52,30 @@ class HandleInertiaRequests extends Middleware
                 ? $user->toUserTeam($user->currentTeam)
                 : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
+
+            // RBAC effective-permission map for the active org, keyed
+            // by permission name. Lets the frontend gate UI affordances
+            // (buttons, nav items) without round-tripping. Lazy so
+            // unauthenticated/non-org pages don't pay the lookup cost.
+            'auth.can' => fn () => $this->permissionsMap($user),
         ];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function permissionsMap(?\App\Models\User $user): array
+    {
+        if (! $user || ! $user->currentOrganization) {
+            return [];
+        }
+
+        // The middleware has already pointed Spatie at the current org.
+        // `getAllPermissions()` returns the *effective* set (role +
+        // individual grants), which is what the UI needs.
+        return $user->getAllPermissions()
+            ->pluck('name')
+            ->mapWithKeys(fn (string $name) => [$name => true])
+            ->all();
     }
 }

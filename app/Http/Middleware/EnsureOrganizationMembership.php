@@ -35,6 +35,12 @@ class EnsureOrganizationMembership
             $user->switchOrganization($org);
         }
 
+        // Tell Spatie which org we're acting in — every $user->can()
+        // and $user->hasRole() call downstream resolves against this
+        // org's rows in model_has_roles / model_has_permissions.
+        app(\Spatie\Permission\PermissionRegistrar::class)
+            ->setPermissionsTeamId($org->id);
+
         return $next($request);
     }
 
