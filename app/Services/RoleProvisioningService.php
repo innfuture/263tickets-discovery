@@ -56,7 +56,16 @@ class RoleProvisioningService
     {
         $this->syncPermissions();
 
-        DB::transaction(function () use ($org) {
+        // The Owner role is contractually god-mode: it picks up every
+        // permission row in the DB, including permissions added by other
+        // modules outside the Permission enum. We compute this once
+        // before the loop so each org's Owner role gets the same union.
+        $allPermissionNames = Permission::query()
+            ->where('guard_name', 'web')
+            ->pluck('name')
+            ->all();
+
+        DB::transaction(function () use ($org, $allPermissionNames) {
             foreach (SystemRole::all() as $systemRole) {
                 $role = Role::query()->updateOrCreate(
                     [
@@ -71,9 +80,14 @@ class RoleProvisioningService
                     ],
                 );
 
-                $role->syncPermissions(
-                    array_map(fn (PermissionEnum $p) => $p->value, $systemRole->permissions()),
-                );
+                $permissionNames = $systemRole === SystemRole::Owner
+                    ? $allPermissionNames
+                    : array_map(
+                        fn (PermissionEnum $p) => $p->value,
+                        $systemRole->permissions(),
+                    );
+
+                $role->syncPermissions($permissionNames);
             }
         });
 

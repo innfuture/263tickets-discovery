@@ -1,20 +1,17 @@
 import { Form, Head } from '@inertiajs/react';
 import {
     Building2,
-    Facebook,
     Globe,
     Image as ImageIcon,
-    Instagram,
-    Linkedin,
     Loader2,
     Mail,
     MapPin,
     Star,
     Twitter,
-    Youtube,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { BrandIcon } from '@/components/brand-icon';
 import Heading from '@/components/heading';
 import ImageDropzone from '@/components/image-dropzone';
 import { Button } from '@/components/ui/button';
@@ -408,7 +405,7 @@ export default function OrganizationEdit({
                                     description="Each link surfaces as an icon on the public profile page. Leave blank to hide."
                                 >
                                     <SocialField
-                                        icon={<Twitter className="size-4" />}
+                                        icon={<BrandIcon provider="x" size={14} />}
                                         name="twitter_url"
                                         label="Twitter / X"
                                         defaultValue={organization.social_links.twitter}
@@ -416,7 +413,7 @@ export default function OrganizationEdit({
                                         placeholder="https://x.com/your-org"
                                     />
                                     <SocialField
-                                        icon={<Instagram className="size-4" />}
+                                        icon={<BrandIcon provider="instagram" size={14} />}
                                         name="instagram_url"
                                         label="Instagram"
                                         defaultValue={organization.social_links.instagram}
@@ -424,7 +421,7 @@ export default function OrganizationEdit({
                                         placeholder="https://instagram.com/your-org"
                                     />
                                     <SocialField
-                                        icon={<Facebook className="size-4" />}
+                                        icon={<BrandIcon provider="facebook" size={14} />}
                                         name="facebook_url"
                                         label="Facebook"
                                         defaultValue={organization.social_links.facebook}
@@ -432,7 +429,7 @@ export default function OrganizationEdit({
                                         placeholder="https://facebook.com/your-org"
                                     />
                                     <SocialField
-                                        icon={<Linkedin className="size-4" />}
+                                        icon={<BrandIcon provider="linkedin" size={14} />}
                                         name="linkedin_url"
                                         label="LinkedIn"
                                         defaultValue={organization.social_links.linkedin}
@@ -440,14 +437,14 @@ export default function OrganizationEdit({
                                         placeholder="https://linkedin.com/company/your-org"
                                     />
                                     <SocialField
-                                        icon={<Youtube className="size-4" />}
+                                        icon={<BrandIcon provider="youtube" size={14} />}
                                         name="youtube_url"
                                         label="YouTube"
                                         defaultValue={organization.social_links.youtube}
                                         error={errors.youtube_url}
                                     />
                                     <SocialField
-                                        icon={null}
+                                        icon={<BrandIcon provider="tiktok" size={14} />}
                                         name="tiktok_url"
                                         label="TikTok"
                                         defaultValue={organization.social_links.tiktok}

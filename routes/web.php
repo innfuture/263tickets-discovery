@@ -3,6 +3,8 @@
 use App\Http\Controllers\AdCampaignController;
 use App\Http\Controllers\EventAnalyticsController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\MarketingController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\Organizations\OrganizationInvitationController;
 use App\Http\Controllers\TicketCategoryController;
@@ -64,6 +66,17 @@ Route::prefix('{current_organization}')
         Route::post('events/{event:slug}/ads/{campaign}/pause', [AdCampaignController::class, 'pause'])->name('ads.pause');
         Route::post('events/{event:slug}/ads/{campaign}/sync', [AdCampaignController::class, 'syncMetrics'])->name('ads.sync');
         Route::delete('events/{event:slug}/ads/{campaign}', [AdCampaignController::class, 'destroy'])->name('ads.destroy');
+
+        // ── Orders (cross-event order management) ─────────────────────────────
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+
+        // ── Marketing (campaigns, social, paid ads, integrations) ─────────────
+        Route::get('marketing', [MarketingController::class, 'index'])->name('marketing.index');
+        Route::get('marketing/email-campaigns', [MarketingController::class, 'emailCampaigns'])->name('marketing.email-campaigns');
+        Route::get('marketing/social', [MarketingController::class, 'social'])->name('marketing.social');
+        Route::get('marketing/paid-ads', [MarketingController::class, 'paidAds'])->name('marketing.paid-ads');
+        Route::get('marketing/integrations', [MarketingController::class, 'integrations'])->name('marketing.integrations');
     });
 
 // ── Public organizer profile — Eventbrite-style /o/{slug} ──────────────────

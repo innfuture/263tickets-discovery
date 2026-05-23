@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'workos_id', 'avatar', 'current_team_id', 'current_organization_id', 'notification_preferences'])]
+#[Fillable(['name', 'email', 'workos_id', 'avatar', 'current_team_id', 'current_organization_id', 'notification_preferences', 'trusted_ip_allowlist'])]
 #[Hidden(['workos_id', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -73,6 +73,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'notification_preferences' => 'array',
+            'trusted_ip_allowlist' => 'array',
         ];
     }
 }

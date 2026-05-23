@@ -106,6 +106,18 @@ enum Permission: string
     case DataExportRequest = 'data.export-request';
     case GdprRequestProcess = 'data.gdpr-process';
 
+    // ── Orders (cross-event order management) ───────────────────────────
+    case OrderView = 'order.view';
+    case OrderManage = 'order.manage';
+    case OrderRefund = 'order.refund';
+    case OrderResend = 'order.resend';
+
+    // ── Marketing ───────────────────────────────────────────────────────
+    case MarketingEmailManage = 'marketing.email.manage';
+    case MarketingSocialPublish = 'marketing.social.publish';
+    case MarketingFacebookEventManage = 'marketing.facebook-event.manage';
+    case MarketingPaidAdsManage = 'marketing.paid-ads.manage';
+
     // ── Integrations + OAuth ────────────────────────────────────────────
     case IntegrationManage = 'integration.manage';
     case OAuthAppManage = 'oauth_app.manage';
@@ -136,6 +148,8 @@ enum Permission: string
             'data' => 'Compliance',
             'integration' => 'Integrations',
             'oauth_app' => 'Integrations',
+            'order' => 'Orders',
+            'marketing' => 'Marketing',
         ][explode('.', $this->value)[0]] ?? 'Other';
     }
 
@@ -210,6 +224,14 @@ enum Permission: string
             self::GdprRequestProcess => 'Process GDPR requests',
             self::IntegrationManage => 'Manage integrations',
             self::OAuthAppManage => 'Manage OAuth apps',
+            self::OrderView => 'View orders',
+            self::OrderManage => 'Manage orders (edit buyer info, ticket-types)',
+            self::OrderRefund => 'Refund orders',
+            self::OrderResend => 'Resend order tickets / receipts',
+            self::MarketingEmailManage => 'Manage email campaigns',
+            self::MarketingSocialPublish => 'Publish social posts &amp; share events',
+            self::MarketingFacebookEventManage => 'Manage Facebook Event listings',
+            self::MarketingPaidAdsManage => 'Manage paid social ad campaigns',
         };
     }
 

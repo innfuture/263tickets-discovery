@@ -1,13 +1,6 @@
-import {
-    Check,
-    Copy,
-    Facebook,
-    Link2,
-    Mail,
-    Share2,
-    Twitter,
-} from 'lucide-react';
+import { Check, Copy, Link2, Mail, Share2 } from 'lucide-react';
 import { useState } from 'react';
+import { BrandIcon } from '@/components/brand-icon';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -60,7 +53,7 @@ export function ShareMenu({ url, title }: { url: string; title: string }) {
                         target="_blank"
                         rel="noreferrer"
                     >
-                        <Twitter className="size-4" />
+                        <BrandIcon provider="x" size={16} />
                         Share on X
                     </a>
                 </DropdownMenuItem>
@@ -70,7 +63,7 @@ export function ShareMenu({ url, title }: { url: string; title: string }) {
                         target="_blank"
                         rel="noreferrer"
                     >
-                        <Facebook className="size-4" />
+                        <BrandIcon provider="facebook" size={16} />
                         Share on Facebook
                     </a>
                 </DropdownMenuItem>

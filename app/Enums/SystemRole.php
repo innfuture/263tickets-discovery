@@ -105,6 +105,8 @@ enum SystemRole: string
                 Permission::TicketTransfer, Permission::TicketResend,
                 Permission::AttendeeView, Permission::AttendeeContact,
                 Permission::AnalyticsViewEvent,
+                Permission::OrderView, Permission::OrderManage,
+                Permission::OrderRefund, Permission::OrderResend,
             ],
 
             self::MarketingManager => [
@@ -117,6 +119,10 @@ enum SystemRole: string
                 Permission::AdCampaignPause, Permission::AdCampaignDelete, Permission::AdCampaignViewMetrics,
                 Permission::AnalyticsViewEvent, Permission::AnalyticsViewOrg,
                 Permission::IntegrationManage,
+                Permission::MarketingEmailManage,
+                Permission::MarketingSocialPublish,
+                Permission::MarketingFacebookEventManage,
+                Permission::MarketingPaidAdsManage,
             ],
 
             self::FinanceManager => [
@@ -139,6 +145,7 @@ enum SystemRole: string
                 Permission::TicketView,
                 Permission::TicketRefund, Permission::TicketResend, Permission::TicketTransfer,
                 Permission::AttendeeView, Permission::AttendeeContact,
+                Permission::OrderView, Permission::OrderResend,
             ],
 
             self::DoorStaff => [

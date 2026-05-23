@@ -4,19 +4,15 @@ import {
     CalendarDays,
     CheckCircle2,
     ExternalLink,
-    Facebook,
     Globe2,
     Globe as GlobeIcon,
-    Instagram,
-    Linkedin,
     Mail,
     MapPin,
     Pencil,
     Phone,
-    Twitter,
     Users,
-    Youtube,
 } from 'lucide-react';
+import { BrandIcon } from '@/components/brand-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -63,18 +59,28 @@ type EventCard = {
     banner_image_url: string | null;
 };
 
-const SOCIAL_ICONS: Record<
-    string,
-    React.ComponentType<{ className?: string }>
-> = {
-    twitter: Twitter,
-    instagram: Instagram,
-    facebook: Facebook,
-    linkedin: Linkedin,
-    tiktok: ExternalLink,
-    youtube: Youtube,
-    website: GlobeIcon,
-};
+// Renderer for a social link's icon — branded mark for the platforms
+// (Facebook blue, Mailchimp yellow, etc.) and a website globe for the
+// generic 'website' link. `provider="tiktok"` resolves to TikTok's
+// mark via BrandIcon.
+function SocialIconForKey({
+    socialKey,
+    className,
+}: {
+    socialKey: string;
+    className?: string;
+}) {
+    if (socialKey === 'website') {
+        return <GlobeIcon className={className} />;
+    }
+    return (
+        <BrandIcon
+            provider={socialKey === 'twitter' ? 'x' : socialKey}
+            size={16}
+            className={className}
+        />
+    );
+}
 
 /**
  * Public organizer profile — the page attendees land on when they tap an
@@ -419,23 +425,19 @@ function SocialCard({
             </CardHeader>
             <CardContent>
                 <div className="flex flex-wrap gap-2">
-                    {entries.map(({ key, url }) => {
-                        const Icon = SOCIAL_ICONS[key] ?? ExternalLink;
-
-                        return (
-                            <a
-                                key={key}
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="inline-flex size-9 items-center justify-center rounded-full border bg-card text-muted-foreground transition hover:border-primary/40 hover:text-primary"
-                                title={key}
-                                aria-label={key}
-                            >
-                                <Icon className="size-4" />
-                            </a>
-                        );
-                    })}
+                    {entries.map(({ key, url }) => (
+                        <a
+                            key={key}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="inline-flex size-9 items-center justify-center rounded-full border bg-card transition hover:border-primary/40"
+                            title={key}
+                            aria-label={key}
+                        >
+                            <SocialIconForKey socialKey={key} />
+                        </a>
+                    ))}
                 </div>
             </CardContent>
         </Card>

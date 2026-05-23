@@ -31,8 +31,21 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+
+            // `auth` is a single nested object so frontend reads
+            // `page.props.auth.user` and `page.props.auth.can`. Using
+            // a flat dot-key here (e.g. `'auth.can' => …`) doesn't
+            // deep-merge — Inertia keeps it as a literal key — and
+            // the sidebar's permission gates rely on the nested
+            // shape.
             'auth' => [
                 'user' => $user,
+                // Effective-permission map for the active org, keyed
+                // by permission name. Lets the frontend gate UI
+                // affordances (buttons, nav items) without
+                // round-tripping. Lazy so unauthenticated /
+                // non-org pages don't pay the lookup cost.
+                'can' => fn () => $this->permissionsMap($user),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
 
@@ -52,12 +65,6 @@ class HandleInertiaRequests extends Middleware
                 ? $user->toUserTeam($user->currentTeam)
                 : null,
             'teams' => fn () => $user?->toUserTeams(includeCurrent: true) ?? [],
-
-            // RBAC effective-permission map for the active org, keyed
-            // by permission name. Lets the frontend gate UI affordances
-            // (buttons, nav items) without round-tripping. Lazy so
-            // unauthenticated/non-org pages don't pay the lookup cost.
-            'auth.can' => fn () => $this->permissionsMap($user),
         ];
     }
 
