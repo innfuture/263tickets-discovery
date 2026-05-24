@@ -6,22 +6,21 @@ namespace App\Jobs\Automation;
 
 use App\Mail\EventBroadcastMail;
 use App\Models\Order;
+use App\Services\Sms\Contracts\SmsProvider;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Sends a broadcast message to every paid-order email for an event.
- * Chunked so even very large events don't OOM the worker.
+ * Sends a broadcast message to every paid-order recipient for an
+ * event. Chunked so even very large events don't OOM the worker.
  *
- * When the matching `EventBroadcastMail` mailable / SMS provider is
- * missing, logs structured "would-have-sent" lines so QA can confirm
- * the chain ran end-to-end. Implementations of `EventBroadcastMail`
- * and SMS dispatch are intentionally out-of-scope for the engine.
+ * Channel is either `email` (Mail::send) or `sms` (resolved
+ * SmsProvider). The provider binding is config-driven — NullSms in
+ * dev, Twilio etc. in production.
  */
 class BroadcastEventMessageJob implements ShouldQueue
 {
@@ -34,16 +33,17 @@ class BroadcastEventMessageJob implements ShouldQueue
         public string $channel = 'email',
     ) {}
 
-    public function handle(): void
+    public function handle(SmsProvider $sms): void
     {
         Order::query()
             ->where('event_id', $this->eventId)
             ->where('status', 'paid')
             ->select(['id', 'buyer_email', 'buyer_name', 'buyer_phone'])
             ->orderBy('id')
-            ->chunk(200, function ($orders) {
+            ->chunk(200, function ($orders) use ($sms) {
                 foreach ($orders as $order) {
                     $this->deliver(
+                        sms: $sms,
                         email: (string) $order->buyer_email,
                         phone: (string) ($order->buyer_phone ?? ''),
                     );
@@ -51,14 +51,12 @@ class BroadcastEventMessageJob implements ShouldQueue
             });
     }
 
-    protected function deliver(string $email, string $phone): void
+    protected function deliver(SmsProvider $sms, string $email, string $phone): void
     {
-        if ($this->channel === 'sms' && $phone !== '') {
-            Log::info('automation.broadcast.sms', [
-                'phone' => $phone,
-                'subject' => $this->subject,
-                'note' => 'wire an SMS provider (Twilio etc.) to actually send.',
-            ]);
+        if ($this->channel === 'sms') {
+            if ($phone !== '') {
+                $sms->send($phone, $this->subject."\n\n".$this->body);
+            }
 
             return;
         }

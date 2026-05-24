@@ -38,6 +38,21 @@ class AppServiceProvider extends ServiceProvider
 
             return $this->app->make($configured);
         });
+
+        // SMS provider — config-driven binding. NullSmsProvider is the
+        // safe default for dev/CI; production flips to twilio (etc.)
+        // via SMS_DRIVER env.
+        $this->app->bind(\App\Services\Sms\Contracts\SmsProvider::class, function () {
+            return match ((string) config('sms.driver', 'null')) {
+                'twilio' => new \App\Services\Sms\TwilioSmsProvider(
+                    accountSid: (string) config('sms.twilio.account_sid', ''),
+                    authToken: (string) config('sms.twilio.auth_token', ''),
+                    fromNumber: (string) config('sms.twilio.from_number', ''),
+                    timeoutSeconds: (int) config('sms.twilio.timeout_seconds', 10),
+                ),
+                default => new \App\Services\Sms\NullSmsProvider(),
+            };
+        });
     }
 
     /**

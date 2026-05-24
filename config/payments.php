@@ -4,6 +4,7 @@ use App\Services\Payments\Drivers\EcoCashGateway;
 use App\Services\Payments\Drivers\PaynowGateway;
 use App\Services\Payments\Drivers\PesepayGateway;
 use App\Services\Payments\Drivers\SandboxGateway;
+use App\Services\Payments\Drivers\StripeGateway;
 use App\Services\Payments\Drivers\ZimswitchGateway;
 
 /*
@@ -191,6 +192,31 @@ return [
             'label' => 'Sandbox (test only)',
             'supported_currencies' => ['USD', 'EUR', 'GBP', 'ZAR', 'ZWL', 'ZiG'],
             'http' => ['timeout' => 5, 'connect_timeout' => 5, 'retries' => 0],
+        ],
+
+        'stripe' => [
+            'driver' => StripeGateway::class,
+            'enabled' => filter_var(env('STRIPE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'label' => 'Stripe',
+
+            // Server-side secret key. NEVER ship the publishable key
+            // here — that's a FE concern handled by Stripe Elements.
+            'secret_key' => env('STRIPE_SECRET_KEY'),
+            // Endpoint signing secret (Dashboard → Developers →
+            // Webhooks → reveal). Stripe-Signature verification uses
+            // this for HMAC-SHA256 over `t.body`.
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+            // Replay tolerance for webhook timestamps. Stripe-standard
+            // default is 300s; tighten to 120s for high-value flows.
+            'replay_tolerance_seconds' => (int) env('STRIPE_REPLAY_TOLERANCE', 300),
+
+            'supported_currencies' => ['USD', 'EUR', 'GBP', 'ZAR', 'AUD', 'CAD', 'NGN'],
+
+            'http' => [
+                'timeout' => 30,
+                'connect_timeout' => 10,
+                'retries' => 2,
+            ],
         ],
 
     ],
