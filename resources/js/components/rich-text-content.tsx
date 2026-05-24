@@ -1,3 +1,4 @@
+import { sanitizeHtml } from '@/lib/sanitize';
 import { cn } from '@/lib/utils';
 
 export function RichTextContent({
@@ -10,6 +11,8 @@ export function RichTextContent({
     if (!html?.trim()) {
         return null;
     }
+
+    const safe = sanitizeHtml(html);
 
     return (
         <div
@@ -31,7 +34,7 @@ export function RichTextContent({
                 '[&_hr]:my-4 [&_hr]:border-border',
                 className,
             )}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: safe }}
         />
     );
 }

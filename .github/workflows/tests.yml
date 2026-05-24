@@ -49,15 +49,20 @@ jobs:
           key: ${{ runner.os }}-composer-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-${{ matrix.php-version }}-
 
-      - name: Cache Node modules
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Cache pnpm store
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
 
       - name: Install Node Dependencies
-        run: npm ci || npm i
+        run: pnpm install --frozen-lockfile
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
@@ -72,8 +77,8 @@ jobs:
         run: composer audit --locked --no-interaction --abandoned=ignore
         continue-on-error: false
 
-      - name: npm audit (high severity)
-        run: npm audit --audit-level=high
+      - name: pnpm audit (high severity)
+        run: pnpm audit --audit-level=high
 
       - name: Static analysis (phpstan / larastan)
         run: ./vendor/bin/phpstan analyse --memory-limit=2G --no-progress
@@ -85,7 +90,7 @@ jobs:
         run: php artisan migrate --force --no-interaction
 
       - name: Build Assets
-        run: npm run build
+        run: pnpm run build
 
       - name: Tests
         run: ./vendor/bin/pest
