@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\Developer\DeveloperPortalController;
 use App\Http\Controllers\Api\Developer\DeveloperPublicApiController;
 use App\Http\Middleware\EnsureDeveloperApiKey;
+use App\Http\Middleware\EnsureDeveloperPortalToken;
 use App\Http\Middleware\TrackDeveloperApiUsage;
 use App\Models\DeveloperApiKey;
 use Illuminate\Support\Facades\Route;
@@ -22,22 +23,29 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// ── Portal (open registration) ─────────────────────────────────────────
+// ── Portal ─────────────────────────────────────────────────────────────
+// Registration is open. Everything else requires the per-account
+// bootstrap token issued at registration as Authorization: Bearer.
 Route::prefix('api/developer/portal')
     ->middleware('throttle:storefront-checkout')
     ->group(function () {
         Route::post('accounts', [DeveloperPortalController::class, 'register'])
             ->name('developer.portal.register');
-        Route::get('accounts/{uuid}', [DeveloperPortalController::class, 'show'])
-            ->name('developer.portal.show');
-        Route::post('accounts/{uuid}/keys', [DeveloperPortalController::class, 'issueKey'])
-            ->name('developer.portal.issue_key');
-        Route::get('accounts/{uuid}/keys', [DeveloperPortalController::class, 'listKeys'])
-            ->name('developer.portal.list_keys');
-        Route::delete('accounts/{uuid}/keys/{keyUuid}', [DeveloperPortalController::class, 'revokeKey'])
-            ->name('developer.portal.revoke_key');
-        Route::post('accounts/{uuid}/subscribe', [DeveloperPortalController::class, 'subscribe'])
-            ->name('developer.portal.subscribe');
+
+        Route::middleware(EnsureDeveloperPortalToken::class)->group(function () {
+            Route::get('accounts/{uuid}', [DeveloperPortalController::class, 'show'])
+                ->name('developer.portal.show');
+            Route::post('accounts/{uuid}/keys', [DeveloperPortalController::class, 'issueKey'])
+                ->name('developer.portal.issue_key');
+            Route::get('accounts/{uuid}/keys', [DeveloperPortalController::class, 'listKeys'])
+                ->name('developer.portal.list_keys');
+            Route::delete('accounts/{uuid}/keys/{keyUuid}', [DeveloperPortalController::class, 'revokeKey'])
+                ->name('developer.portal.revoke_key');
+            Route::post('accounts/{uuid}/subscribe', [DeveloperPortalController::class, 'subscribe'])
+                ->name('developer.portal.subscribe');
+            Route::post('accounts/{uuid}/rotate-token', [DeveloperPortalController::class, 'rotateToken'])
+                ->name('developer.portal.rotate_token');
+        });
     });
 
 // ── Public Developer API v1 ────────────────────────────────────────────
