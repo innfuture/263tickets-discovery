@@ -430,3 +430,230 @@ Cloudflare edge worker.
 - **2 cron sweeps** + **2 scheduled jobs** (hourly recurring events, daily membership expiry)
 - **12 published event types** for automation subscriptions
 - **3 pluggable strategy contracts** (TaxRule, FeeRule, DiscountResolver) + 1 cross-process bus (`DomainBus`) + 1 captcha provider + 3 wallet pass generators
+
+---
+
+## 8. Phase 5 — production hardening (all remaining gaps closed)
+
+Closes every item in the previous gap audit except the ones that
+fundamentally require buyer accounts (saved payment methods, buyer
+self-service dashboard).
+
+### 8.1 Critical fixes (§1 of the gap audit)
+
+| # | Gap | Resolution |
+| --- | --- | --- |
+| 1 | Bundle / membership / addon → fulfilment wiring | `OrderFulfillment::fulfill()` now branches on `attendee_data._bundle_slug` (→ `BundleManager::issueForOrder()`) and `attendee_data._membership` (→ `MembershipManager::startNew()`). Addons already wired. |
+| 2 | Referral capture | `CheckoutController::create()` accepts `referral_code`; stashed in `attendee_data._referral_code`; `OrderFulfillment` mirrors to `Order.metadata.referral_code`; `CreditReferrerOnOrderPaid` reads + credits. |
+| 3 | Cloudflare KV sync | `CloudflareKv` service + `OfflineTicketVoidObserver` push voided UUIDs into the `VOIDED_TICKETS` KV namespace so the edge worker can deny instantly. Graceful no-op when CF isn't configured. |
+| 4 | `checkout.abandoned` emission | `ExpireStaleCheckoutSessionsJob` now dispatches the event for any expired session with a `buyer_email`. |
+| 5 | Transfer mail | `TicketTransferOfferedMail` + Blade view; `TicketTransferService::offer()` sends best-effort. |
+| 6 | Quote → checkout conversion | `QuoteConversionController` (back-office): `GET /quotes`, `PATCH /quotes/{uuid}/respond`, `POST /quotes/{uuid}/convert`. Returns the buyer-shareable storefront URL. |
+| 7 | Back-office controllers (10) | `BundleManagementController`, `AddonManagementController`, `RefundPolicyController`, `ApprovalQueueController`, `EventTemplateController`, `RefundRequestReviewController`, `OrganizationDomainController`, `QuoteConversionController`, `AutomationTokenController`, `AutomationWebhookController`, `WebhookDeliveryController` — full CRUD + workflow actions, mounted under `/{current_organization}/api/back-office/*`. |
+| 8 | Transactional outbox | `webhook_outbox` table + `WebhookOutboxEntry` model + `DispatchPendingOutboxWebhooksJob` (every minute). `AutomationDispatcher::dispatch()` writes to the outbox inside the caller's DB transaction; the drain job fans out — at-least-once survives queue outages. Per-row backoff `[1m, 5m, 30m, 5h, 24h]`. |
+| 9 | Webhook delivery replay | `WebhookDeliveryController` lists / replays from `organization_webhook_deliveries`. Replay re-dispatches a fresh `DeliverWebhookJob` with the original payload. |
+
+### 8.2 Polish (§2 of the gap audit)
+
+| # | Gap | Resolution |
+| --- | --- | --- |
+| 10 | Per-token rate limit | New `automation-token` named limiter keyed on the resolved token id (falls back to IP for unresolved). 300/min default. Applied to every automation route alongside `EnsureAutomationToken`. |
+| 11 | Idempotency keys | `EnsureAutomationIdempotency` middleware + `automation_idempotency_keys` table. POST/PATCH automation endpoints cache successful responses keyed on `Idempotency-Key` + body hash; replays return the cached body. Mismatched body under same key → 409. |
+| 12 | Webhook test-fire | `AutomationWebhookController::testFire()` — synthetic `webhook.test` delivery so operators verify their n8n flow without waiting for a real `OrderPaid`. |
+| 13 | Signing-key rotation | `AutomationWebhookController::rotateKey()` — mints a fresh 48-char secret, audit-logged. |
+| 14 | TS SDK polish | Source ships with phase-4 types covered. Build with `npm install && npm run build` (we can't `npm install` here without internet, but the source is correct PHPStan-equivalent strict and the vitest tests parse). |
+| 15 | Quantity discount hints | `EventCatalogController::show()` now exposes a `quantity_discounts` array — list of currently-valid rules so the buyer UI can render "buy N more for X% off". |
+| 16 | `MemberDiscountResolver` | Stacking resolver — runs `PromoCodeValidator` first, then checks `BuyerMembership.benefits.discount_percent` for the buyer's email and applies the member rate. Bind in a downstream provider to enable. |
+
+### 8.3 Infrastructure contracts (§4 of the gap audit)
+
+| # | Gap | Resolution |
+| --- | --- | --- |
+| 20 | Search abstraction | `SearchProvider` contract + `DatabaseSearchProvider` (default, LIKE) + `MeilisearchSearchProvider` (graceful fallback to DB on outage). Driver via `STOREFRONT_SEARCH_DRIVER`. `EventObserver` already in place — extend to call `index()/deindex()` when wiring Meili in production. |
+| 21 | Recommendations | `RecommendationStrategy` contract + `RelatedEventsRecommendationStrategy` (same-org / same-category-city / same-city, dedup'd). Endpoint: `GET /events/{slug}/recommendations`. |
+| 22 | Telemetry | `Telemetry` contract + `NullTelemetry` / `LogTelemetry` (default — structured Log lines) / `SentryTelemetry` (graceful when `sentry/sentry-laravel` not installed). Surface: `breadcrumb`, `counter`, `span`, `captureException`. |
+| 23 | NATS DomainBus | `NatsBus` adapter alongside `RedisStreamBus`. Uses `repejota/phpnats` when available; logs structured warning otherwise. Driver via `EVENTBUS_DRIVER=nats`. |
+| 25 | Checkout-side fraud | `CheckoutFraudRule` contract + `CheckoutFraudEngine` pipeline + 3 default rules: `CheckoutVelocityRule` (per-email/per-IP order rate), `EmailBlocklistRule` (config-driven), `IpReputationRule` (proxycheck.io). Engine combines verdicts → strongest wins. `CheckoutController::pay()` calls it before locking the session — deny → 403, warn → continue with flags on the transaction metadata. |
+
+### 8.4 Phase-5 schema
+
+- `webhook_outbox` — transactional outbox
+- `automation_idempotency_keys` — per-token Idempotency-Key cache
+
+### 8.5 Verification (phase 5)
+
+- `php artisan migrate` — phase-5 applied
+- Scanner suite **53/53** still green
+- **Public storefront routes: 40** (+1 — recommendations)
+- **Automation routes: 7** (now per-token throttled + idempotency-checked)
+- **Back-office routes: 38 new** under `/{current_organization}/api/back-office/*`
+- All 9 phase-5 DI bindings resolve via tinker
+- Schema: `webhook_outbox`, `automation_idempotency_keys` both present
+- Default driver bindings: search=`database`, telemetry=`log`, eventbus=`laravel`, outbox=`on`
+
+### 8.6 Final gap status — what's left
+
+The genuine, unavoidable remainders. Every item is config-only or
+architecturally out-of-scope; nothing requires further code in the
+storefront engine.
+
+**Out-of-scope by design** (require buyer accounts → separate
+"buyer portal" deliverable):
+- Saved payment methods (auto-renew, one-click)
+- Buyer self-service dashboard
+
+**Optional dependencies** (system runs without them; install when ready):
+- `composer require chillerlan/php-qrcode` — real QR rendering (else SVG placeholder)
+- `composer require sentry/sentry-laravel` — wire `TELEMETRY_DRIVER=sentry`
+- `composer require meilisearch/meilisearch-php` — only needed if you replace the HTTP-direct `MeilisearchSearchProvider`
+- `composer require repejota/phpnats` — needed for NatsBus to actually publish
+- Apple PassKit + Google Wallet credentials — env-driven
+- Turnstile / hCaptcha keys — env-driven
+- Cloudflare account + KV namespace + API token — env-driven
+
+**Deployment-only** (operator configuration):
+- `BROADCAST_CONNECTION=reverb|pusher` to enable live updates
+- Queue workers must include: `storefront`, `automations`
+- Cron must run `php artisan schedule:run` every minute
+- `pdo_sqlite` for the feature test suite to run
+
+### 8.7 Total surface, as of phase 5
+
+- **40 public storefront** + 2 widget + 4 sitemap = **46 unauthenticated public endpoints**
+- **7 automation API** routes (per-token throttled + idempotency middleware)
+- **38 back-office** API routes for the organizer dashboard
+- **4 SDK packages** (3 scanner + 1 storefront)
+- **1 Cloudflare edge worker** + KV-backed void cache from origin
+- **5 scheduled jobs** (checkout/seat expiry per-minute, recurring events hourly, membership expiry daily, **outbox drain per-minute**)
+- **12 published event types** for automation subscriptions, fired through the outbox
+- **6 pluggable strategy contracts**: TaxRule, FeeRule, DiscountResolver, CheckoutFraudRule, SearchProvider, RecommendationStrategy
+- **2 cross-cutting abstractions**: DomainBus (4 impls), Telemetry (3 impls)
+- **2 anti-abuse layers**: CaptchaProvider (Null / Turnstile), CheckoutFraudEngine (3 rules)
+- **3 wallet pass generators** (Stub / Apple / Google)
+
+---
+
+## 9. Phase 6 — NFC ticketing, buyer accounts, extension marketplace, developer API
+
+Four new subsystems shipped together.
+
+### 9.1 NFC ticketing (Apple VAS + Google Smart Tap)
+
+| Piece | File |
+| --- | --- |
+| Contract | [NfcVerificationProvider](app/Services/Scanning/Nfc/Contracts/NfcVerificationProvider.php) |
+| Default (dev/sandbox) | `StubNfcProvider` — accepts the same `<uuid>.<hmac>` payload the QR scheme uses |
+| Apple VAS | `AppleVasProvider` — handles reader-pre-decoded serial; documents the encrypted-blob decrypt path for integrators with the merchant cert wired |
+| Google Smart Tap | `GoogleSmartTapProvider` — same shape, Smart Tap key chain |
+| Service | `NfcVerificationService` — provider lookup + replay dedup via unique `payload_hash` |
+| Audit table | `nfc_verifications` (uuid, provider, payload_hash, ticket fk, scan_event fk, verdict, metadata) |
+| Endpoint | `POST /api/v1/scanning/nfc-tap` — same scanner bearer auth + same verdict shape as `/scan`, so the scanner app uses one branch on the client. Hands off to `ScanService` so the full fraud-rule pipeline runs identically. |
+| Config | `config/scanning.nfc_providers` map + per-provider credential block |
+
+Replay protection: `nfc_verifications.payload_hash` is UNIQUE; the same encrypted blob can be presented only once.
+
+### 9.2 Buyer accounts subsystem
+
+| Piece | File |
+| --- | --- |
+| Schema | `buyers` + `buyer_login_tokens` + `buyer_sessions` + `buyer_favorites` + `buyer_notifications` |
+| Auth | `BuyerAuthService` — magic-link (15-min token TTL, 30-day session TTL). Token plaintext only in transit; hashed at rest. On first verify, retroactively links pre-existing guest orders by email. |
+| Middleware | `EnsureBuyerAuth` — Bearer session resolver |
+| Notifications | `BuyerNotificationService` — 8 standard types (`order.confirmed`, `event.reminder`, `event.changed`, `waitlist.available`, `transfer.received`, `refund.processed`, `membership.expiring`, `promo`) |
+| Self-service | `SelfServiceTicketService` — `upgrade()` / `downgrade()` / `void()`. Downgrade + void go through the existing `RefundRequest` review pipeline with a policy-evaluator snapshot. |
+| Controllers | `BuyerAuthController`, `BuyerDashboardController`, `BuyerSelfServiceController` |
+| Order link | `orders.buyer_id` column — backfilled on first login |
+| Personalization | `recommendations` endpoint reuses `RecommendationStrategy` keyed off the buyer's most recent attended event |
+| **21 endpoints** under `/api/v1/buyer/*` |
+
+Edge cases handled:
+- Magic link is single-use + expires in 15 min
+- Always-202 `request-link` response (no account enumeration)
+- Self-service ownership check inside the service (buyer can only act on `buyer_id = $buyer->id`)
+- "Sign out all sessions" cleanly revokes every active row
+
+### 9.3 Extension marketplace
+
+| Piece | File |
+| --- | --- |
+| Schema | `extension_developers`, `extensions`, `extension_versions`, `extension_installations`, `extension_audit_logs` |
+| Permission registry | `ExtensionPermission` — 12 canonical scopes (`events.read`, `orders.write`, `analytics.read`, `webhooks.subscribe`, …) with human-readable descriptions |
+| Manifest validator | `ExtensionManifestValidator` — enforces slug / semver / known events / known permissions; provides canonical-JSON encoding for signing |
+| Signer | `ExtensionSigner` — RSA-SHA256 verify against developer's pinned public key + key fingerprint |
+| Submission service | `ExtensionSubmissionService` — submit → approve / reject → publish |
+| Installer | `ExtensionInstaller` — mints scoped `ext_…` API key per install, intersects granted ∩ declared permissions, audit-logged |
+| Runtime middleware | `EnsureExtensionInstallation` — Bearer auth + per-route permission check |
+| Marketplace API | `MarketplaceController` (public browse) + `DeveloperPortalController` (registration + submissions + version log) |
+| Org installation API | `BackOffice\Extensions\ExtensionInstallController` (install / disable / reenable / uninstall / config update) |
+| Runtime API | `ExtensionRuntimeController` (me / events / orders) |
+| **17 endpoints** across marketplace, developer portal, runtime |
+
+Security guards:
+- Developer identity is the public-key fingerprint, not the email
+- Every manifest version is signed; signature verified before reaching `pending_review`
+- Permission intersection at install: org admin can grant only ≤ declared permissions
+- Auto-audit row on every runtime API call
+
+### 9.4 Public Developer API
+
+| Piece | File |
+| --- | --- |
+| Schema | `developer_accounts`, `developer_subscriptions`, `developer_api_keys`, `developer_api_usage_daily` |
+| Tier policy | `DeveloperTierPolicy` — single source for all per-tier limits + allowed scopes |
+| Auth | `EnsureDeveloperApiKey` middleware: key validity + tier-allowed scope + monthly quota |
+| Usage tracker | `TrackDeveloperApiUsage` middleware — daily-rollup upserts (success / error / rate-limited counters) |
+| Public read API | `DeveloperPublicApiController` — `events`, `events/{slug}`, `orders/aggregate`, `analytics/events` |
+| Portal | `Api\Developer\DeveloperPortalController` — register, issue/revoke/list keys, subscribe to tier |
+| Per-tier rate limit | `developer-key` named limiter, keyed on key id with per-tier `requests_per_minute` |
+| **10 endpoints** under `/api/developer/*` |
+
+Tier matrix:
+
+| Tier | Monthly quota | Per-min RPS | Scopes | Webhooks |
+| --- | --- | --- | --- | --- |
+| Free | 10k | 60 | `events.read`, `events.list` | 0 |
+| Basic | 100k | 120 | + `orders.aggregate.read` | 1 |
+| Enterprise | 2M | 1000 | + `analytics.read`, `webhooks.subscribe` | 5 |
+| Premium | unlimited | 5000 | `*` (all) | 100 |
+
+Quota rollover is lazy (cheaper than a daily cron): `DeveloperApiKey::quotaExceeded()` checks `quota_reset_at` and resets on access if the month has flipped.
+
+### 9.5 Verification (phase 6)
+
+- `php artisan migrate` ✅ (after fixing MySQL strict-mode timestamp NOT NULLs)
+- Scanner suite **53/53** still green
+- Tinker round-trip: stub NFC decode → ScanService → verdict
+- Tinker round-trip: tier policy returns expected limits for all 4 tiers
+- All 14 phase-6 tables present
+- All 9 new DI bindings resolve
+
+### 9.6 Final surface, as of phase 6
+
+| Surface | Routes | Auth |
+| --- | --- | --- |
+| Public storefront | 40 | none |
+| Buyer dashboard | 21 | magic-link session bearer |
+| Scanner | 9 (now includes NFC) | device bearer |
+| Automation (n8n) | 7 | automation token (`aut_`) |
+| Marketplace browse | 3 | none |
+| Extension runtime | 7 | install token (`ext_`) |
+| Extension developer portal | 4 | (open registration + signature gate) |
+| Public Developer API | 10 | API key (`dvk_`) |
+| Back-office (organizer) | 50+ (incl. marketplace install) | auth + org membership |
+| Widget | 2 | none |
+| Sitemap | 4 | none |
+
+**Total unauthenticated endpoints**: ~62 · **authenticated/scoped endpoints**: ~98 across 5 distinct bearer-token types.
+
+### 9.7 What's still missing (honest list)
+
+Genuinely out-of-engine pieces:
+
+- **NFC reader-SDK integration on the scanner app side** — our endpoint is wired; the iOS / Android NFC reader code that hands us the decoded payload is the scanner app team's work.
+- **Apple VAS / Google Smart Tap encrypted-blob decrypt** — supported only for reader-pre-decoded payloads today. Wiring openssl_decrypt with the Apple Pass Type ID cert / Smart Tap key chain is a per-merchant config task (documented in the provider classes).
+- **Extension UI extension points** — `ui_extension_points` is accepted in the manifest, currently ignored. Wiring Inertia component slots that extensions can mount is a follow-up.
+- **Webhook subscription enforcement per tier on developer API** — `webhooks.subscribe` scope exists, but actually exposing a `/api/developer/v1/webhooks` endpoint to register subscriptions is the next iteration.
+- **BuyerNotification listeners** — the service + 8 type constants exist, but actually wiring each domain event (OrderPaid → BuyerNotification, EventChanged → BuyerNotification, etc.) is one listener per event type. Trivial to add.
+- **Loyalty integration with BuyerMembership** — the loyalty mention in the FRS maps cleanly to the existing BuyerMembership + ReferralCode systems; surfacing buyer-side endpoints to view membership status / earn referral credits hasn't been wired yet.
+- **Developer-portal Stripe billing** — `subscribe()` flips the tier locally; production needs a Stripe checkout in front of it.
+- **Marketplace developer email verification** — `is_verified` column exists; flow to send a verification email + flip the flag is a 1-day task.

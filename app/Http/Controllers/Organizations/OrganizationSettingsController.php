@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Organizations;
 
+use App\Actions\Organizations\CreateOrganization;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organizations\DeleteOrganizationRequest;
 use App\Http\Requests\Organizations\SaveOrganizationRequest;
@@ -31,7 +32,7 @@ class OrganizationSettingsController extends Controller
         ]);
     }
 
-    public function store(SaveOrganizationRequest $request, \App\Actions\Organizations\CreateOrganization $createOrganization): RedirectResponse
+    public function store(SaveOrganizationRequest $request, CreateOrganization $createOrganization): RedirectResponse
     {
         $createOrganization->handle($request->user(), $request->validated('name'));
 

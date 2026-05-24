@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\TicketScanned;
 use App\Listeners\Scanning\QueueScanWebhook;
+use App\Models\Organization;
 use App\Services\Scanning\Contracts\BiometricProvider;
 use App\Services\Scanning\Contracts\ScanHistory;
 use App\Services\Scanning\EloquentScanHistory;
@@ -12,6 +13,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -39,6 +41,14 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerEventListeners();
+
+        // `{current_organization}` in the URL is a slug — resolve it
+        // to an Organization model so controllers can type-hint
+        // `Organization $currentOrganization` and skip a lookup.
+        // EnsureOrganizationMembership still runs and authorises.
+        Route::bind('current_organization', function (string $slug) {
+            return Organization::query()->where('slug', $slug)->firstOrFail();
+        });
     }
 
     /**

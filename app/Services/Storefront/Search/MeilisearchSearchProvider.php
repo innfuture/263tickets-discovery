@@ -30,7 +30,7 @@ class MeilisearchSearchProvider implements SearchProvider
     public function __construct(
         protected string $url,
         protected ?string $masterKey,
-        protected string $indexName = 'events',
+        protected string $indexName,
         protected DatabaseSearchProvider $fallback,
     ) {}
 

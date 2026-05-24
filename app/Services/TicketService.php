@@ -14,6 +14,7 @@ use App\Models\TicketDiscount;
 use App\Models\TicketPromoCode;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class TicketService
 {
@@ -166,8 +167,8 @@ class TicketService
         // — the table has existed in past schemas without the FK column,
         // and a SELECT against a missing column throws a 42S22.
         if (
-            \Illuminate\Support\Facades\Schema::hasTable('tickets')
-            && \Illuminate\Support\Facades\Schema::hasColumn('tickets', 'offline_ticket_id')
+            Schema::hasTable('tickets')
+            && Schema::hasColumn('tickets', 'offline_ticket_id')
         ) {
             $q->whereNotIn(
                 'id',
@@ -211,7 +212,7 @@ class TicketService
      * Update a ticket category. Dispatches additional offline ticket generation
      * if offline_quantity was increased.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function updateCategory(TicketCategory $category, array $data): TicketCategory
     {
@@ -317,7 +318,7 @@ class TicketService
                     'ticket_price_adjustments',
                 ] as $table
             ) {
-                if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                if (Schema::hasTable($table)) {
                     DB::table($table)
                         ->where('ticket_category_id', $category->id)
                         ->delete();
@@ -331,7 +332,7 @@ class TicketService
         // a stale image file is annoying but doesn't break anything.
         if ($imagePath) {
             try {
-                app(\App\Services\ImageProcessingService::class)->delete($imagePath);
+                app(ImageProcessingService::class)->delete($imagePath);
             } catch (\Throwable) {
                 // swallowed — DB state is authoritative
             }
@@ -341,7 +342,7 @@ class TicketService
     // ─── Discount helpers ────────────────────────────────────────────────────
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createDiscount(TicketCategory $category, array $data): TicketDiscount
     {
@@ -352,7 +353,7 @@ class TicketService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function createPromoCode(TicketCategory $category, array $data): TicketPromoCode
     {

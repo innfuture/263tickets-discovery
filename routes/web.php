@@ -133,6 +133,9 @@ Route::prefix('{current_organization}')
         Route::post('marketing/social', [MarketingController::class, 'storeSocialPost'])->name('marketing.social.store');
         Route::post('marketing/integrations/{provider}/connect', [MarketingController::class, 'connectIntegration'])->name('marketing.integrations.connect');
         Route::post('marketing/integrations/{provider}/disconnect', [MarketingController::class, 'disconnectIntegration'])->name('marketing.integrations.disconnect');
+
+        // ── Back-office storefront / automation JSON API ───────────────────────
+        require __DIR__.'/backoffice.php';
     });
 
 // ── Public organizer profile — Eventbrite-style /o/{slug} ──────────────────

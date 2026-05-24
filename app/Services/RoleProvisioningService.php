@@ -28,9 +28,7 @@ use Spatie\Permission\PermissionRegistrar;
  */
 class RoleProvisioningService
 {
-    public function __construct(private PermissionRegistrar $registrar)
-    {
-    }
+    public function __construct(private PermissionRegistrar $registrar) {}
 
     /**
      * Full re-sync: ensure every Permission case has a global row, and

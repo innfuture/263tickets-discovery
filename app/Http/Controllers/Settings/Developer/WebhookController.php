@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Settings\Developer;
 
-use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\Settings\Operations\WebhookController as OperationsWebhookController;
+use App\Http\Controllers\Settings\SettingsController;
 use App\Models\OrganizationWebhook;
 use App\Models\WebhookDelivery;
 use App\Services\Audit\AuditLogger;

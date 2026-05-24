@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\Automation\DispatchPendingOutboxWebhooksJob;
 use App\Jobs\Storefront\ExpireBuyerMembershipsJob;
 use App\Jobs\Storefront\ExpireStaleCheckoutSessionsJob;
 use App\Jobs\Storefront\ExpireStaleSeatHoldsJob;
@@ -64,4 +65,13 @@ Schedule::job(new GenerateRecurringEventInstancesJob)
 // reminder emails are a separate job (out of engine scope).
 Schedule::job(new ExpireBuyerMembershipsJob)
     ->dailyAt('02:00')
+    ->onOneServer();
+
+// Transactional outbox drain — fans out queued domain events to
+// subscribed organization_webhooks. Every minute is the right cadence
+// — outbox row pickup is sub-second, drain latency is dominated by
+// the per-webhook HTTP timeout (10s default).
+Schedule::job(new DispatchPendingOutboxWebhooksJob)
+    ->everyMinute()
+    ->withoutOverlapping()
     ->onOneServer();

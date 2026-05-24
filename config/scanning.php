@@ -73,6 +73,30 @@ return [
         BiometricVerificationRule::class,
     ],
 
+    // NFC ticketing — mobile wallet → reader tap verification.
+    // `nfc_providers` maps the `provider` request param to the
+    // implementation class. Add an entry to plug in a vendor-specific
+    // reader SDK driver.
+    'nfc_providers' => [
+        'stub' => \App\Services\Scanning\Nfc\StubNfcProvider::class,
+        'apple_vas' => \App\Services\Scanning\Nfc\AppleVasProvider::class,
+        'google_smart_tap' => \App\Services\Scanning\Nfc\GoogleSmartTapProvider::class,
+    ],
+
+    'nfc' => [
+        'apple_vas' => [
+            // Apple VAS merchant identifier (configured in the
+            // Apple Developer portal alongside your Pass Type ID).
+            'merchant_id' => env('SCANNING_APPLE_VAS_MERCHANT_ID'),
+            'cert_path' => env('SCANNING_APPLE_VAS_CERT_PATH'),
+            'cert_passphrase' => env('SCANNING_APPLE_VAS_CERT_PASSPHRASE', ''),
+        ],
+        'google_smart_tap' => [
+            'issuer_id' => env('SCANNING_GOOGLE_SMART_TAP_ISSUER_ID'),
+            'key_path' => env('SCANNING_GOOGLE_SMART_TAP_KEY_PATH'),
+        ],
+    ],
+
     'webhooks' => [
         // Retry policy for the outbound scan webhook (per-profile URL).
         // Identical shape to the payment webhook backoff to keep the

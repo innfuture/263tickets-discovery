@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Settings\Team;
 
 use App\Enums\TeamRole;
 use App\Http\Controllers\Settings\SettingsController;
-use App\Models\Organization;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -98,6 +98,6 @@ class MemberController extends SettingsController
             ->where('user_id', $user->id)
             ->max('last_active_at');
 
-        return $ts ? \Illuminate\Support\Carbon::parse($ts)->toIso8601String() : null;
+        return $ts ? Carbon::parse($ts)->toIso8601String() : null;
     }
 }

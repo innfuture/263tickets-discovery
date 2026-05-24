@@ -35,6 +35,15 @@ return Application::configure(basePath: dirname(__DIR__))
             // Automation API (n8n / Zapier / Make). Bearer-token auth,
             // CSRF-exempt below.
             require __DIR__.'/../routes/api-automation.php';
+
+            // Authenticated buyer surface — magic-link sessions.
+            require __DIR__.'/../routes/api-buyer.php';
+
+            // Extension marketplace + runtime + developer-portal.
+            require __DIR__.'/../routes/api-extensions.php';
+
+            // Public Developer API (tiered) + developer portal.
+            require __DIR__.'/../routes/api-developer.php';
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -50,6 +59,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/v1/scanning/*',
             'api/v1/public/*',
             'api/v1/automations/*',
+            'api/v1/buyer/*',
+            'api/v1/marketplace/*',
+            'api/v1/extensions/*',
+            'api/developer/*',
             'widget/v1/*',
         ]);
 

@@ -19,6 +19,7 @@ use App\Services\Payments\Data\WebhookEvent;
 use App\Services\Payments\Exceptions\GatewayNotConfiguredException;
 use App\Services\Payments\Exceptions\PaymentException;
 use App\Services\Payments\Sandbox\SandboxKernel;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -196,7 +197,7 @@ class SandboxGateway extends AbstractGateway implements HandlesWebhooks, PollsTr
         );
     }
 
-    protected function serviceClient(): \Illuminate\Http\Client\PendingRequest
+    protected function serviceClient(): PendingRequest
     {
         $base = (string) config('payments.sandbox.base_url');
         $token = (string) config('payments.sandbox.service_key');

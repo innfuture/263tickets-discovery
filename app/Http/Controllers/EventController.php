@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\EventStatus;
 use App\Enums\EventVisibility;
+use App\Enums\SponsorTier;
 use App\Http\Requests\Events\SaveEventRequest;
 use App\Http\Requests\Events\UpdateSeoRequest;
-use App\Enums\SponsorTier;
 use App\Models\Event;
 use App\Models\EventCategory;
 use App\Models\EventMediaItem;

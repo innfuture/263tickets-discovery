@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Organizations;
 use App\Enums\Permission as PermissionEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organizations\SaveRoleRequest;
+use App\Models\Organization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +24,7 @@ use Spatie\Permission\PermissionRegistrar;
  */
 class RoleController extends Controller
 {
-    public function __construct(private PermissionRegistrar $registrar)
-    {
-    }
+    public function __construct(private PermissionRegistrar $registrar) {}
 
     public function index(Request $request): Response
     {
@@ -132,7 +131,7 @@ class RoleController extends Controller
         return to_route('roles.index');
     }
 
-    private function currentOrgOrThrow(Request $request): \App\Models\Organization
+    private function currentOrgOrThrow(Request $request): Organization
     {
         $org = $request->user()?->currentOrganization;
         abort_if($org === null, 404);
@@ -140,7 +139,7 @@ class RoleController extends Controller
         return $org;
     }
 
-    private function assertRoleInOrg(Role $role, \App\Models\Organization $org): void
+    private function assertRoleInOrg(Role $role, Organization $org): void
     {
         abort_unless((int) $role->organization_id === $org->id, 404);
     }

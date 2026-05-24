@@ -7,6 +7,8 @@ namespace App\Services\EventBus;
 use App\Services\EventBus\Contracts\DomainBus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Nats\Connection;
+use Nats\ConnectionOptions;
 
 /**
  * NATS JetStream publisher. Subject scheme:
@@ -44,7 +46,7 @@ class NatsBus implements DomainBus
             'occurred_at' => now()->toIso8601String(),
         ], JSON_UNESCAPED_SLASHES);
 
-        if (class_exists(\Nats\Connection::class)) {
+        if (class_exists(Connection::class)) {
             $this->publishViaNatsPhp($subject, (string) $body);
 
             return;
@@ -61,12 +63,12 @@ class NatsBus implements DomainBus
     protected function publishViaNatsPhp(string $subject, string $body): void
     {
         try {
-            $options = new \Nats\ConnectionOptions;
+            $options = new ConnectionOptions;
             $options->setHost($this->host)->setPort($this->port);
             if ($this->token !== null && $this->token !== '') {
                 $options->setToken($this->token);
             }
-            $conn = new \Nats\Connection($options);
+            $conn = new Connection($options);
             $conn->connect();
             $conn->publish($subject, $body);
             $conn->close();

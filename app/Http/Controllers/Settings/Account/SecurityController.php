@@ -178,11 +178,11 @@ class SecurityController extends SettingsController
         foreach ([-1, 0, 1] as $offset) {
             $counter = pack('N*', 0).pack('N*', (int) ($now + $offset));
             $hash = hash_hmac('sha1', $counter, $key, true);
-            $byte = ord($hash[19]) & 0xf;
-            $value = ((ord($hash[$byte]) & 0x7f) << 24)
-                | ((ord($hash[$byte + 1]) & 0xff) << 16)
-                | ((ord($hash[$byte + 2]) & 0xff) << 8)
-                | (ord($hash[$byte + 3]) & 0xff);
+            $byte = ord($hash[19]) & 0xF;
+            $value = ((ord($hash[$byte]) & 0x7F) << 24)
+                | ((ord($hash[$byte + 1]) & 0xFF) << 16)
+                | ((ord($hash[$byte + 2]) & 0xFF) << 8)
+                | (ord($hash[$byte + 3]) & 0xFF);
             $candidate = str_pad((string) ($value % 1000000), 6, '0', STR_PAD_LEFT);
             if (hash_equals($candidate, $code)) {
                 return true;
@@ -208,7 +208,7 @@ class SecurityController extends SettingsController
             $bits += 5;
             if ($bits >= 8) {
                 $bits -= 8;
-                $out .= chr(($buffer >> $bits) & 0xff);
+                $out .= chr(($buffer >> $bits) & 0xFF);
             }
         }
 

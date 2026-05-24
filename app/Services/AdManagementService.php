@@ -6,6 +6,7 @@ use App\Enums\AdCampaignStatus;
 use App\Enums\AdPlatform;
 use App\Models\AdCampaign;
 use App\Models\Event;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -28,7 +29,7 @@ class AdManagementService
      * (event, venue, organisation, etc.). The owner must expose an
      * `organisation_id` attribute and a stable primary key.
      *
-     * @param  \Illuminate\Database\Eloquent\Model  $owner
+     * @param  Model  $owner
      * @param  array<string, mixed>  $data  Validated campaign configuration
      */
     public function createForOwner($owner, array $data): AdCampaign
@@ -76,7 +77,7 @@ class AdManagementService
     /**
      * Backward-compatible event-specific entry point.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(Event $event, array $data): AdCampaign
     {

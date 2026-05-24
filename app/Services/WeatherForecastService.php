@@ -10,6 +10,7 @@ use Throwable;
 class WeatherForecastService
 {
     private const TTL_SECONDS = 3600;
+
     private const TIMEOUT_SECONDS = 5;
 
     /**
@@ -84,6 +85,7 @@ class WeatherForecastService
             return $forecasts;
         } catch (Throwable $e) {
             Log::warning('Weather forecast fetch failed: '.$e->getMessage());
+
             return null;
         }
     }

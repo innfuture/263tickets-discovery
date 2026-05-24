@@ -43,6 +43,11 @@ Route::prefix('api/v1/scanning')->name('api.scanning.')->group(function (): void
         Route::post('scan', [ScanController::class, 'single'])->name('scan');
         Route::post('scan/batch', [ScanController::class, 'batch'])->name('scan.batch');
 
+        // Mobile-wallet tap (Apple VAS / Google Smart Tap) — same
+        // verdict shape as /scan, decoded via NfcVerificationProvider.
+        Route::post('nfc-tap', [\App\Http\Controllers\Api\Scanning\NfcTapController::class, 'tap'])
+            ->name('nfc.tap');
+
         Route::get('tickets/{payload}', TicketLookupController::class)
             ->where('payload', '.*')
             ->name('tickets.lookup');

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\QuantityDiscountRule;
 use App\Services\Storefront\EventPageViewTracker;
 use App\Services\Storefront\PublicEventQuery;
 use App\Services\Storefront\TicketReservation;
@@ -207,11 +208,11 @@ class EventCatalogController extends Controller
      */
     protected function quantityDiscountHints($event): array
     {
-        if (! class_exists(\App\Models\QuantityDiscountRule::class)) {
+        if (! class_exists(QuantityDiscountRule::class)) {
             return [];
         }
 
-        return \App\Models\QuantityDiscountRule::query()
+        return QuantityDiscountRule::query()
             ->where('organisation_id', $event->organisation_id)
             ->where('is_active', true)
             ->where(fn ($q) => $q->whereNull('event_id')->orWhere('event_id', $event->id))

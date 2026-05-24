@@ -2,6 +2,8 @@
 
 use App\Services\Storefront\Fees\PlatformFeeRule;
 use App\Services\Storefront\Fees\ProcessorFeeRule;
+use App\Services\Storefront\Fraud\Rules\CheckoutVelocityRule;
+use App\Services\Storefront\Fraud\Rules\EmailBlocklistRule;
 use App\Services\Storefront\Taxes\FlatRateTaxRule;
 
 /*
@@ -168,4 +170,42 @@ return [
     // construct the "view your tickets" URL. Public-facing front-end
     // owns the route shape; we just hand back a URL stub.
     'public_url' => env('STOREFRONT_PUBLIC_URL', env('APP_URL')),
+
+    // Cloudflare KV — populated by `OfflineTicketVoidObserver` so the
+    // scanner-edge Worker can early-deny voided tickets. Leave blank
+    // to no-op the sync (graceful — origin is still authoritative).
+    'cloudflare' => [
+        'account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
+        'api_token' => env('CLOUDFLARE_API_TOKEN'),
+        'voided_namespace_id' => env('CLOUDFLARE_VOIDED_KV_NAMESPACE_ID'),
+    ],
+
+    // Search backend — `database` (default LIKE) or `meilisearch`
+    // once you've spun up the index.
+    'search' => [
+        'driver' => env('STOREFRONT_SEARCH_DRIVER', 'database'),
+        'meilisearch' => [
+            'url' => env('MEILISEARCH_URL', 'http://127.0.0.1:7700'),
+            'master_key' => env('MEILISEARCH_KEY'),
+            'index_name' => env('MEILISEARCH_EVENT_INDEX', 'events'),
+        ],
+    ],
+
+    // Pre-charge fraud pipeline at /checkout/sessions/{uuid}/pay.
+    // Mirrors how `config/scanning.php` wires scanner-side fraud:
+    // drop a CheckoutFraudRule class in to extend, remove to drop.
+    'fraud_rules' => [
+        CheckoutVelocityRule::class,
+        EmailBlocklistRule::class,
+        // Off by default — needs an external lookup key.
+        // \App\Services\Storefront\Fraud\Rules\IpReputationRule::class,
+    ],
+
+    'fraud' => [
+        'velocity_window_minutes' => (int) env('STOREFRONT_FRAUD_VELOCITY_WINDOW', 10),
+        'velocity_threshold' => (int) env('STOREFRONT_FRAUD_VELOCITY_THRESHOLD', 5),
+        'blocked_emails' => array_filter(explode(',', (string) env('STOREFRONT_BLOCKED_EMAILS', ''))),
+        'blocked_email_domains' => array_filter(explode(',', (string) env('STOREFRONT_BLOCKED_EMAIL_DOMAINS', 'mailinator.com,trashmail.com'))),
+        'ip_reputation_url' => env('STOREFRONT_IP_REPUTATION_URL', 'http://proxycheck.io/v2/{ip}'),
+    ],
 ];

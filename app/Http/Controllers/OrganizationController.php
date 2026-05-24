@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\EventStatus;
 use App\Enums\OrganizerType;
 use App\Http\Requests\Organizations\UpdateOrganizationProfileRequest;
+use App\Models\Event;
 use App\Models\Organization;
 use App\Services\ImageProcessingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -182,7 +184,7 @@ class OrganizationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function eventCardPayload(\App\Models\Event $event): array
+    private function eventCardPayload(Event $event): array
     {
         return [
             'id' => $event->id,
@@ -194,7 +196,7 @@ class OrganizationController extends Controller
             'country_code' => $event->country_code,
             'is_online' => (bool) $event->is_online,
             'banner_image_url' => $event->banner_image_path
-                ? \Illuminate\Support\Facades\Storage::url($event->banner_image_path)
+                ? Storage::url($event->banner_image_path)
                 : null,
         ];
     }

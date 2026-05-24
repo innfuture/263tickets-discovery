@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Public\OrderLookupController;
 use App\Http\Controllers\Api\Public\OrganizationProfileController;
 use App\Http\Controllers\Api\Public\PrivacyController;
 use App\Http\Controllers\Api\Public\QuoteController;
+use App\Http\Controllers\Api\Public\RecommendationController;
 use App\Http\Controllers\Api\Public\ReferralController;
 use App\Http\Controllers\Api\Public\RefundRequestController;
 use App\Http\Controllers\Api\Public\SeatController;
@@ -59,6 +60,9 @@ Route::prefix('api/v1/public')->group(function () {
 
         Route::get('events/{slug}/addons', [AddonController::class, 'index'])
             ->name('public.events.addons');
+
+        Route::get('events/{slug}/recommendations', [RecommendationController::class, 'index'])
+            ->name('public.events.recommendations');
 
         Route::get('gift-cards/{code}/balance', [GiftCardController::class, 'balance'])
             ->name('public.giftcards.balance');

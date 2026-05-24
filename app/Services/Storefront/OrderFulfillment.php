@@ -7,6 +7,7 @@ namespace App\Services\Storefront;
 use App\Events\OrderPaid;
 use App\Models\CheckoutSession;
 use App\Models\Event;
+use App\Models\EventBundle;
 use App\Models\OfflineTicket;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -161,7 +162,7 @@ class OrderFulfillment
             // or a bundle line.
             $bundleSlug = (string) (($session->attendee_data['_bundle_slug'] ?? '') ?: '');
             if ($bundleSlug !== '') {
-                $bundle = \App\Models\EventBundle::query()
+                $bundle = EventBundle::query()
                     ->where('slug', $bundleSlug)->first();
                 if ($bundle) {
                     Container::getInstance()->make(BundleManager::class)

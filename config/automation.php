@@ -29,6 +29,18 @@ return [
     // automation token. Mirror the constants in AutomationToken.
     'default_scopes' => ['read'],
 
+    // Transactional outbox. When true (default), AutomationDispatcher
+    // writes to webhook_outbox inside the caller's DB transaction;
+    // DispatchPendingOutboxWebhooksJob drains the table out-of-band.
+    // Set to false to revert to in-line fire-and-forget delivery.
+    'use_outbox' => env('AUTOMATION_USE_OUTBOX', true),
+    'outbox_max_attempts' => (int) env('AUTOMATION_OUTBOX_MAX_ATTEMPTS', 6),
+
+    // Per-token bucket (per-minute) on the inbound automation API —
+    // n8n bursts from a single host get a fair share rather than
+    // being blanket-throttled with everyone else on that IP.
+    'token_rate_limit_per_minute' => (int) env('AUTOMATION_TOKEN_RL', 300),
+
     // The list of event types we *can* publish — surfaced in the
     // dashboard so the user knows what to subscribe to.
     'event_types' => [

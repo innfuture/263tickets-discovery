@@ -21,6 +21,7 @@ use App\Services\Storefront\Exceptions\CheckoutSessionLockedException;
 use App\Services\Storefront\Exceptions\CurrencyMismatchException;
 use App\Services\Storefront\Exceptions\InventoryUnavailableException;
 use App\Services\Storefront\Exceptions\PromoCodeInvalidException;
+use App\Services\Storefront\Fraud\CheckoutFraudEngine;
 use App\Services\Storefront\OrderFulfillment;
 use App\Services\Storefront\PriceCalculator;
 use App\Services\Storefront\PromoCodeValidator;
@@ -269,6 +270,19 @@ class CheckoutController extends Controller
             return response()->json(['error' => 'gateway_unavailable', 'message' => $e->getMessage()], 422);
         }
 
+        // Run the pre-charge fraud pipeline. Deny → 403 with the
+        // reason code; warn → continue but stamp flags onto the
+        // transaction metadata so reconciliation can review.
+        $fraud = app(CheckoutFraudEngine::class)
+            ->evaluate($session, $request);
+        if ($fraud->outcome === 'deny') {
+            return response()->json([
+                'error' => 'checkout_blocked',
+                'reason' => $fraud->reasonCode,
+                'flags' => $fraud->flags,
+            ], 403);
+        }
+
         // Authoritative price snapshot. Don't trust totals from the buyer.
         $quote = $this->prices->recompute($session);
 
@@ -297,6 +311,8 @@ class CheckoutController extends Controller
             'metadata' => [
                 'checkout_session_uuid' => $session->uuid,
                 'event_id' => (int) $session->event_id,
+                'fraud_flags' => $fraud->flags,
+                'fraud_outcome' => $fraud->outcome,
             ],
         ]);
         $session->forceFill(['payment_transaction_id' => $transaction->id])->save();

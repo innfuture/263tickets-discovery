@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Telemetry;
 
 use App\Services\Telemetry\Contracts\Telemetry;
+use Sentry\Breadcrumb;
+use Sentry\State\Scope;
+use Sentry\Tracing\SpanStatus;
+use Sentry\Tracing\TransactionContext;
 use Throwable;
 
 /**
@@ -22,9 +26,9 @@ class SentryTelemetry implements Telemetry
         if (! function_exists('\\Sentry\\addBreadcrumb')) {
             return;
         }
-        \Sentry\addBreadcrumb(new \Sentry\Breadcrumb(
-            level: \Sentry\Breadcrumb::LEVEL_INFO,
-            type: \Sentry\Breadcrumb::TYPE_DEFAULT,
+        \Sentry\addBreadcrumb(new Breadcrumb(
+            level: Breadcrumb::LEVEL_INFO,
+            type: Breadcrumb::TYPE_DEFAULT,
             category: $category,
             message: $message,
             metadata: $context,
@@ -46,15 +50,15 @@ class SentryTelemetry implements Telemetry
         }
 
         $transaction = \Sentry\startTransaction(
-            new \Sentry\Tracing\TransactionContext($name),
+            new TransactionContext($name),
         );
         try {
             $result = $work();
-            $transaction->setStatus(\Sentry\Tracing\SpanStatus::ok());
+            $transaction->setStatus(SpanStatus::ok());
 
             return $result;
         } catch (Throwable $e) {
-            $transaction->setStatus(\Sentry\Tracing\SpanStatus::internalError());
+            $transaction->setStatus(SpanStatus::internalError());
             $this->captureException($e, $context);
             throw $e;
         } finally {
@@ -67,7 +71,7 @@ class SentryTelemetry implements Telemetry
         if (! function_exists('\\Sentry\\captureException')) {
             return;
         }
-        \Sentry\withScope(function (\Sentry\State\Scope $scope) use ($e, $context): void {
+        \Sentry\withScope(function (Scope $scope) use ($e, $context): void {
             foreach ($context as $k => $v) {
                 $scope->setExtra((string) $k, $v);
             }
