@@ -17,18 +17,23 @@ use Illuminate\Support\Facades\Log;
  * encrypted payload signed by the device's secure enclave + the
  * pass's private key.
  *
- * Real handshake details:
- *   - The reader speaks the Value Added Services Protocol over NFC
- *     and forwards the encrypted blob to us via the scanner SDK.
- *   - We decrypt with the merchant private key (configured per
- *     organization via storefront.wallet.apple.cert_path).
- *   - Inside is `serialNumber` — matches `OfflineTicket::serial`
- *     or whatever the pass was issued with.
+ * Three accepted inbound shapes (in priority order, cheapest to most
+ * expensive):
  *
- * Apple's spec is private; this implementation handles the common
- * "pre-decoded by the reader SDK" case where the reader hands us the
- * decrypted serial directly. If credentials aren't configured, we
- * throw `not_configured` so the caller can fall back to QR.
+ *   1. `serial:<value>`     Reader SDK pre-decoded; payload IS the serial.
+ *   2. `<alnum>`            Plain serial, no prefix. Same as #1 minus prefix.
+ *   3. Base64-encoded JSON envelope from a reader SDK that does NOT
+ *      pre-decode. The envelope MUST carry a pre-derived `symmetric_key`
+ *      (the ECDH derivation has to happen against the merchant
+ *      private key + Apple's ephemeral public key, which lives inside
+ *      the reader SDK and varies by vendor). With the symmetric key
+ *      in hand, we decrypt AES-256-GCM and read `serialNumber`.
+ *
+ * If the envelope lacks `symmetric_key`, we refuse — pretending to
+ * derive it from the public key alone (without the ephemeral) would
+ * not actually decrypt anything real. Reader-SDK integrators that
+ * need a different derivation path should subclass and override
+ * `decryptBlob` for their hardware.
  */
 class AppleVasProvider implements NfcVerificationProvider
 {
@@ -52,19 +57,6 @@ class AppleVasProvider implements NfcVerificationProvider
             );
         }
 
-        // Two acceptable inbound shapes:
-        //
-        //   1. Reader-pre-decoded: payload IS the serial number from
-        //      the pass. Cheapest path — most reader SDKs operate
-        //      here, e.g. Bluestar, ID Tech.
-        //
-        //   2. Raw encrypted blob: base64-encoded {ephemeral pubkey,
-        //      ciphertext, signature}. Decrypt with `certPath` private
-        //      key, parse the inner record to lift the serial.
-        //
-        // The implementation below handles (1) directly; (2) is logged
-        // as TODO so an integrator can wire openssl_decrypt + the
-        // Apple-specific record parser without changing the call site.
         $payload = trim($encodedPayload);
 
         if (str_starts_with($payload, 'serial:')) {
@@ -95,13 +87,18 @@ class AppleVasProvider implements NfcVerificationProvider
     }
 
     /**
-     * Decrypt the Apple VAS blob using the merchant private key and
-     * extract the serial. The blob is base64-encoded JSON:
-     *   {"data":"<base64 ciphertext>","header":{"ephemeralPublicKey":"<base64>"}}
-     * with AES-256-GCM as the symmetric cipher (Apple spec).
+     * Decrypt an Apple VAS envelope. Expected JSON shape:
      *
-     * Reader SDKs that already decode to a plain serial use the
-     * earlier branches; this path is for SDKs that pass the raw blob.
+     *   {
+     *     "data": "<base64 IV(12B) || ciphertext || GCM tag(16B)>",
+     *     "symmetric_key": "<base64 raw 32-byte AES key>"
+     *   }
+     *
+     * The reader SDK is responsible for performing ECDH against the
+     * merchant private key + Apple's ephemeral public key and passing
+     * the derived symmetric key alongside the ciphertext. This split
+     * keeps the vendor-specific KDF in the SDK where it belongs and
+     * keeps us cleanly decoupled.
      */
     protected function decryptBlob(string $payload): string
     {
@@ -117,7 +114,19 @@ class AppleVasProvider implements NfcVerificationProvider
         if (! is_array($envelope) || ! isset($envelope['data'])) {
             throw new NfcVerificationException(
                 'encrypted_blob_malformed',
-                'Apple VAS envelope missing required fields.',
+                'Apple VAS envelope missing required `data` field.',
+            );
+        }
+
+        if (! isset($envelope['symmetric_key'])) {
+            Log::warning('apple_vas.envelope_missing_symmetric_key', [
+                'merchant_id' => $this->merchantId,
+                'note' => 'Reader SDK must perform ECDH and include the derived AES key in the envelope.',
+            ]);
+
+            throw new NfcVerificationException(
+                'encrypted_blob_unsupported',
+                'Apple VAS envelope lacks a pre-derived symmetric_key. Use a reader SDK that performs the ECDH derivation.',
             );
         }
 
@@ -132,25 +141,29 @@ class AppleVasProvider implements NfcVerificationProvider
         }
 
         $cipherText = (string) base64_decode((string) $envelope['data'], true);
+        if (strlen($cipherText) < 28) {
+            throw new NfcVerificationException(
+                'encrypted_blob_malformed',
+                'Apple VAS ciphertext too short to contain IV + tag.',
+            );
+        }
+
         $iv = substr($cipherText, 0, 12);
         $tag = substr($cipherText, -16);
         $body = substr($cipherText, 12, -16);
 
-        $sharedSecret = '';
-        $derivedKey = (string) openssl_pkey_get_details($privateKey)['key'];
-        // The full ECDH-derived symmetric key derivation belongs in a
-        // KDF helper; for adapters that ship a pre-derived key via the
-        // envelope, accept that path and decrypt directly.
-        if (isset($envelope['symmetric_key'])) {
-            $sharedSecret = (string) base64_decode((string) $envelope['symmetric_key'], true);
-        } else {
-            $sharedSecret = hash('sha256', $derivedKey, true);
+        $symmetricKey = (string) base64_decode((string) $envelope['symmetric_key'], true);
+        if (strlen($symmetricKey) !== 32) {
+            throw new NfcVerificationException(
+                'encrypted_blob_malformed',
+                'Apple VAS symmetric_key must decode to 32 bytes (AES-256).',
+            );
         }
 
         $plaintext = openssl_decrypt(
             $body,
             'aes-256-gcm',
-            $sharedSecret,
+            $symmetricKey,
             OPENSSL_RAW_DATA,
             $iv,
             $tag,

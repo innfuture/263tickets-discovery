@@ -260,7 +260,6 @@ function useGenerationPoller(
                         ) {
                             router.reload({
                                 only: ['event'],
-                                preserveScroll: true,
                             });
                         }
                     },
@@ -1689,7 +1688,6 @@ export function EventTicketManager({
                             onClick={() =>
                                 router.reload({
                                     only: ['event'],
-                                    preserveScroll: true,
                                 })
                             }
                         >

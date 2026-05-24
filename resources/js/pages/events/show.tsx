@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import type { ComponentProps } from 'react';
 import {
     AlertCircle,
     ArrowRight,
@@ -766,7 +767,8 @@ export default function EventShow({ event, weather }: Props) {
 
                             <TabsContent value="tickets" className="mt-0">
                                 <EventTicketManager
-                                    categories={event.ticket_categories}
+                                    // TODO: two TicketCategory types diverged across files; unify and drop this cast.
+                                    categories={event.ticket_categories as unknown as ComponentProps<typeof EventTicketManager>['categories']}
                                     teamSlug={teamSlug}
                                     eventSlug={event.slug}
                                 />
