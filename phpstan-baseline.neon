@@ -1,0 +1,6 @@
+parameters:
+    # Pre-existing errors grandfathered so the CI gate is blocking only for
+    # new code. Regenerate with:
+    #   ./vendor/bin/phpstan analyse --generate-baseline
+    # Keep this file empty if there are no pre-existing errors.
+    ignoreErrors: []
