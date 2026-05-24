@@ -14,6 +14,11 @@ export default defineConfig({
     // crashes with "Invalid hook call".
     resolve: {
         dedupe: ['react', 'react-dom'],
+        alias: {
+            '@': '/resources/js',
+            '@ads': '/resources/js/components/ads',
+            '@ds': '/resources/js/design-system',
+        },
     },
     plugins: [
         laravel({
