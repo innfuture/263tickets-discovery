@@ -280,5 +280,16 @@ class PublicStorefrontServiceProvider extends ServiceProvider
 
             return Limit::perMinute($perMin)->by('dvkey:'.$key->id);
         });
+
+        // Distributor POS device: per-device bucket on resolved
+        // attributes. Generous default — a busy POS at a stadium
+        // gate can legitimately push tens of sales per minute. The
+        // SalesVelocityGuard handles abusive bursts separately.
+        RateLimiter::for('distributor-device', function (Request $request) {
+            $device = $request->attributes->get('distributor_device');
+            $key = $device?->id ? 'device:'.$device->id : 'ip:'.$request->ip();
+
+            return Limit::perMinute(120)->by($key);
+        });
     }
 }
