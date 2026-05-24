@@ -101,5 +101,32 @@ export type { CodeProps, CodeBlockProps } from './Code';
 export { ToastProvider, useToast } from './Toast';
 export type { ToastOptions, ToastAction, ToastType } from './Toast';
 
+export { FlashToastBridge } from './FlashToastBridge';
+
 export { DataTable } from './DataTable';
 export type { DataTableProps, Column } from './DataTable';
+
+// Compatibility wrappers — shadcn-shaped APIs backed by ADS primitives.
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card';
+export type {
+    CardProps,
+    CardHeaderProps,
+    CardTitleProps,
+    CardDescriptionProps,
+    CardContentProps,
+    CardFooterProps,
+} from './Card';
+
+export { Input } from './Input';
+export type { InputProps } from './Input';
+
+export { Label } from './Label';
+export type { LabelProps } from './Label';
+
+export { Separator } from './Separator';
+export type { SeparatorProps } from './Separator';
+
+export { ConfirmProvider, useConfirm } from './useConfirm';
+
+export { PageHeading } from './PageHeading';
+export type { PageHeadingProps } from './PageHeading';

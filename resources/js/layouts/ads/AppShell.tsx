@@ -2,17 +2,43 @@ import { Content, LeftSidebarWithoutResize, Main, PageLayout, TopNavigation } fr
 import type { ReactNode } from 'react';
 import { SideNav } from '@/components/ads-navigation/SideNav';
 import { TopNav } from '@/components/ads-navigation/TopNav';
+import { Breadcrumbs, type BreadcrumbItem } from '@ads';
+
+/**
+ * Legacy breadcrumb shape used by existing pages — `{ title, href }`
+ * with `title` instead of ADS's `text`. AppShell accepts both shapes
+ * so pages can opt in to either without rewriting metadata yet.
+ */
+export interface LegacyBreadcrumb {
+    title: string;
+    href?: string;
+}
+
+export interface AppShellProps {
+    children: ReactNode;
+    /**
+     * Optional breadcrumbs (legacy `{title, href}` or ADS `{text, href}`).
+     * When present, they render in a thin bar above the main content so
+     * pages that previously set `Page.layout = {breadcrumbs}` keep the
+     * same UX without modification.
+     */
+    breadcrumbs?: (BreadcrumbItem | LegacyBreadcrumb)[];
+}
 
 /**
  * Jira-shape app shell: fixed 56px top bar, fixed 240px left sidebar,
- * scrollable main content. Pages opt into this by assigning
- * `Page.layout = AppShell` in their Inertia component.
+ * scrollable main content. Accepts the legacy `breadcrumbs` prop so
+ * `Page.layout = { breadcrumbs: [...] }` continues to work.
  *
- * Coexists with the legacy <AppLayout>; pages don't have to migrate
- * all at once. Switch a page by setting its layout to AppShell + use
- * components from @ads instead of @/components/ui.
+ * For new pages, use `Page.layout = (page) => <AppShell>{page}</AppShell>`
+ * + wrap the body in <PageContent title="..." breadcrumbs={...}> for
+ * full title/header treatment.
  */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, breadcrumbs }: AppShellProps) {
+    const normalisedCrumbs: BreadcrumbItem[] | undefined = breadcrumbs?.map((c) =>
+        'text' in c ? c : { text: c.title, href: c.href },
+    );
+
     return (
         <div className="ads-page" data-ads-surface>
             <PageLayout>
@@ -31,6 +57,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </LeftSidebarWithoutResize>
 
                     <Main id="main-content" skipLinkTitle="Main content" testId="ads-main">
+                        {normalisedCrumbs && normalisedCrumbs.length > 0 ? (
+                            <div
+                                style={{
+                                    paddingInline: 'var(--ds-space-400)',
+                                    paddingTop: 'var(--ds-space-200)',
+                                }}
+                            >
+                                <Breadcrumbs items={normalisedCrumbs} />
+                            </div>
+                        ) : null}
                         {children}
                     </Main>
                 </Content>

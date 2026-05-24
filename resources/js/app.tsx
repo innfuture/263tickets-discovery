@@ -1,18 +1,20 @@
 import { createInertiaApp } from '@inertiajs/react';
 import AppProvider from '@atlaskit/app-provider';
+import { ThemeProvider } from '@/design-system';
+import { ConfirmProvider, FlashToastBridge, ToastProvider } from '@ads';
+import { initializeTheme } from '@/hooks/use-appearance';
+import { AppShell } from '@/layouts/ads/AppShell';
+import { SettingsLayout as AdsSettingsLayout } from '@/layouts/ads/SettingsLayout';
+
+// Legacy providers kept while pages migrate — they no-op for ADS
+// pages but still serve any unmigrated shadcn pages.
 import { ConfirmationDialogProvider } from '@/components/ui/confirmation-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ThemeProvider } from '@/design-system';
-import { initializeTheme } from '@/hooks/use-appearance';
-import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 
 // ── ADS Foundation CSS ──────────────────────────────────────────────
 // Order matters: reset first, then tokens (light / dark / high-
-// contrast variants), then our app-level layout overlay. These load
-// alongside the existing Tailwind/shadcn app.css so pages can migrate
-// to ADS incrementally — both systems coexist during the transition.
+// contrast variants), then our app-level layout overlay.
 import '@atlaskit/css-reset';
 import '@atlaskit/tokens/css/atlassian-light.css';
 import '@atlaskit/tokens/css/atlassian-dark.css';
@@ -27,34 +29,41 @@ createInertiaApp({
             case name === 'welcome':
                 return null;
             case name.startsWith('settings/'):
-                return [AppLayout, SettingsLayout];
+                return [AppShell, AdsSettingsLayout];
             default:
-                return AppLayout;
+                return AppShell;
         }
     },
     strictMode: true,
     withApp(app) {
         return (
-            // AppProvider is the ADS root — wires the global theme +
-            // motion preferences. Nests existing legacy providers
-            // unchanged so shadcn pages keep working.
+            // AppProvider is the ADS root. ToastProvider feeds the @ads
+            // useToast hook; FlashToastBridge surfaces Inertia flash
+            // payloads. Legacy shadcn providers (Tooltip, Confirmation
+            // dialog, sonner Toaster) stay nested until every page is
+            // migrated off shadcn.
             <AppProvider>
                 <ThemeProvider>
-                    <TooltipProvider delayDuration={0}>
-                        <ConfirmationDialogProvider>
-                            {app}
-                            <Toaster />
-                        </ConfirmationDialogProvider>
-                    </TooltipProvider>
+                    <ToastProvider>
+                        <ConfirmProvider>
+                            <FlashToastBridge />
+                            <TooltipProvider delayDuration={0}>
+                                <ConfirmationDialogProvider>
+                                    {app}
+                                    <Toaster />
+                                </ConfirmationDialogProvider>
+                            </TooltipProvider>
+                        </ConfirmProvider>
+                    </ToastProvider>
                 </ThemeProvider>
             </AppProvider>
         );
     },
     progress: {
-        color: '#4B5563',
+        color: 'var(--ds-background-brand-bold)',
     },
 });
 
-// This will set light / dark mode on load... (legacy hook, kept until
-// every page reads from the new ThemeProvider).
+// Legacy hook that sets the dark/light class on <html>. Kept until
+// every page reads from the new ThemeProvider directly.
 initializeTheme();
