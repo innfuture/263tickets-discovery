@@ -208,10 +208,12 @@ class AdManagementService
 
     private function platformPause(AdCampaign $campaign): void
     {
+        $this->assertEnabled('platform.pause');
+
         match ($campaign->platform) {
-            AdPlatform::GoogleAds => throw new \RuntimeException('Google Ads pause not yet implemented.'),
-            AdPlatform::MetaAds => throw new \RuntimeException('Meta Ads pause not yet implemented.'),
-            AdPlatform::YouTube => throw new \RuntimeException('YouTube pause not yet implemented.'),
+            AdPlatform::GoogleAds => throw new FeatureNotImplementedException('Google Ads pause not yet wired. Implement google-ads-php pause call.'),
+            AdPlatform::MetaAds => throw new FeatureNotImplementedException('Meta Ads pause not yet wired. Implement Graph API POST /act_{id}/campaigns status=PAUSED.'),
+            AdPlatform::YouTube => throw new FeatureNotImplementedException('YouTube pause routes through Google Ads — wire that first.'),
         };
     }
 }

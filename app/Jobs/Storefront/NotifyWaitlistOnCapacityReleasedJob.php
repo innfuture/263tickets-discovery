@@ -15,7 +15,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -73,16 +72,6 @@ class NotifyWaitlistOnCapacityReleasedJob implements ShouldQueue
 
     protected function dispatchNotification(WaitlistEntry $entry): void
     {
-        if (class_exists(WaitlistAvailableMail::class)) {
-            Mail::to($entry->email)->send(new WaitlistAvailableMail($entry));
-
-            return;
-        }
-
-        Log::info('storefront.waitlist.notify.skipped', [
-            'reason' => 'WaitlistAvailableMail not implemented',
-            'entry_uuid' => $entry->uuid,
-            'email' => $entry->email,
-        ]);
+        Mail::to($entry->email)->send(new WaitlistAvailableMail($entry));
     }
 }

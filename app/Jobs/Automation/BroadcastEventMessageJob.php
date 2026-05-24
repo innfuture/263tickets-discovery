@@ -67,19 +67,6 @@ class BroadcastEventMessageJob implements ShouldQueue
             return;
         }
 
-        if (class_exists(EventBroadcastMail::class)) {
-            Mail::to($email)->send(new EventBroadcastMail(
-                $this->subject,
-                $this->body,
-            ));
-
-            return;
-        }
-
-        Log::info('automation.broadcast.email', [
-            'email' => $email,
-            'subject' => $this->subject,
-            'note' => 'EventBroadcastMail not implemented yet — logging instead.',
-        ]);
+        Mail::to($email)->send(new EventBroadcastMail($this->subject, $this->body));
     }
 }

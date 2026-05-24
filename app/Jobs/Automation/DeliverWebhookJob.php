@@ -47,7 +47,12 @@ class DeliverWebhookJob implements ShouldQueue
         public string $eventType,
         public array $payload,
         public int $attempt = 1,
-    ) {}
+        public ?string $deliveryId = null,
+    ) {
+        // Stable across retries — receivers dedupe on body.id, so a
+        // fresh UUID per attempt would defeat their idempotency.
+        $this->deliveryId ??= (string) Str::uuid();
+    }
 
     public function backoff(): array
     {
@@ -62,7 +67,7 @@ class DeliverWebhookJob implements ShouldQueue
         }
 
         $body = [
-            'id' => (string) Str::uuid(),
+            'id' => $this->deliveryId,
             'type' => $this->eventType,
             'created' => time(),
             'data' => $this->payload,
@@ -127,7 +132,13 @@ class DeliverWebhookJob implements ShouldQueue
         $retryLimit = max(1, (int) ($hook->retry_limit ?? 5));
         if ($this->attempt < $retryLimit && isset($this->backoffSchedule[$this->attempt - 1])) {
             $delay = $this->backoffSchedule[$this->attempt - 1];
-            self::dispatch($this->webhookId, $this->eventType, $this->payload, $this->attempt + 1)
+            self::dispatch(
+                $this->webhookId,
+                $this->eventType,
+                $this->payload,
+                $this->attempt + 1,
+                $this->deliveryId,
+            )
                 ->onQueue($this->queue ?? 'automations')
                 ->delay($delay);
         }
