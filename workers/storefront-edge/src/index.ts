@@ -20,6 +20,13 @@ export interface Env {
   FALLBACK_CURRENCY: string;
   COUNTRY_CURRENCY: Record<string, string>;
   PERSONALISED_CACHE: KVNamespace;
+  // Shared with the origin's SignStorefrontResponse middleware. When
+  // set, the edge verifies X-Origin-Signature before stashing the body
+  // in KV. Without it, signed-only deployments degrade to passthrough
+  // rather than caching unverified bytes.
+  ORIGIN_SIGNING_SECRET?: string;
+  // Tolerance (seconds) for the t=<unix> component of the signature.
+  ORIGIN_SIGNATURE_TOLERANCE?: string;
 }
 
 export default {
@@ -60,17 +67,73 @@ export default {
     const personalised = personalise(body, { country, currency, locale });
     const text = JSON.stringify(personalised);
 
-    // Stash in KV honouring the origin's Cache-Control max-age.
+    // Stash in KV honouring the origin's Cache-Control max-age. Skip
+    // the write when signature verification is configured and fails
+    // — caching unverified bytes would amplify any upstream poisoning.
     const ttl = parseMaxAge(originResponse.headers.get('cache-control')) ?? 30;
-    await env.PERSONALISED_CACHE.put(cacheKey, text, { expirationTtl: ttl });
+    const originalBody = await originResponse.clone().text();
+    const verdict = await verifyOriginSignature(originalBody, originResponse, env);
+
+    if (verdict !== 'invalid') {
+      await env.PERSONALISED_CACHE.put(cacheKey, text, { expirationTtl: ttl });
+    }
 
     return jsonResponse(text, {
-      'X-Edge-Cached': 'miss',
+      'X-Edge-Cached': verdict === 'invalid' ? 'skip-unsigned' : 'miss',
       'X-Edge-Country': country,
       'Cache-Control': `public, max-age=${ttl}`,
     });
   },
 };
+
+async function verifyOriginSignature(
+  body: string,
+  response: Response,
+  env: Env,
+): Promise<'ok' | 'not_configured' | 'invalid'> {
+  const secret = env.ORIGIN_SIGNING_SECRET;
+  if (!secret) return 'not_configured';
+
+  const header = response.headers.get('X-Origin-Signature');
+  if (!header) return 'invalid';
+
+  const parts = Object.fromEntries(
+    header.split(',').map(kv => {
+      const [k, v] = kv.split('=');
+      return [k!.trim(), (v ?? '').trim()];
+    }),
+  );
+  const ts = parts['t'];
+  const v1 = parts['v1'];
+  if (!ts || !v1) return 'invalid';
+
+  const tolerance = Number(env.ORIGIN_SIGNATURE_TOLERANCE ?? '300');
+  const skew = Math.abs(Math.floor(Date.now() / 1000) - Number(ts));
+  if (!Number.isFinite(skew) || skew > tolerance) return 'invalid';
+
+  const expected = await hmacHex(`${ts}.${body}`, secret);
+  return safeEqualHex(v1, expected) ? 'ok' : 'invalid';
+}
+
+async function hmacHex(message: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function safeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 function personalise(body: unknown, ctx: { country: string; currency: string; locale: string }): unknown {
   if (body === null || typeof body !== 'object') return body;

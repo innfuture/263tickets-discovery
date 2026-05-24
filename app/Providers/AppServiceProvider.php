@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Events\TicketScanned;
+use App\Events\TicketVoided;
+use App\Listeners\Scanning\PushVoidedTicketToEdgeListener;
 use App\Listeners\Scanning\QueueScanWebhook;
 use App\Models\Organization;
 use App\Services\Scanning\Contracts\BiometricProvider;
@@ -59,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
     protected function registerEventListeners(): void
     {
         Event::listen(TicketScanned::class, QueueScanWebhook::class);
+        Event::listen(TicketVoided::class, PushVoidedTicketToEdgeListener::class);
     }
 
     /**
