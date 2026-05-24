@@ -185,17 +185,77 @@ Step-by-step recipe for taking a legacy shadcn/Tailwind page over:
 | Phase | What | Status |
 |---|---|---|
 | 0 | Infrastructure (packages, tokens, AppProvider, ads.css, aliases) | ✅ Complete |
-| 1 | Core wrapper components (~28 wrappers + barrel) | ✅ Complete |
+| 1 | Core wrapper components (33 wrappers + barrel) | ✅ Complete |
 | 2 | Layout & navigation (AppShell, PageContent, TopNav, SideNav, AuthLayout, FullscreenLayout, ThemeToggle) | ✅ Complete |
-| 3 | Forms migration (existing form pages → ADS) | ⏳ Per-page work |
-| 4 | Tables & lists migration | ⏳ Per-page work |
+| 2.5 | **AppShell wired as default layout — every page now renders inside ADS chrome automatically** | ✅ Complete |
+| 3 | Forms migration (page bodies off shadcn) | 🟡 5/66 migrated |
+| 4 | Tables & lists migration | 🟡 Subset of #3 |
 | 5 | Detail views & drawers | ⏳ Per-page work |
 | 6 | Motion & polish | ⏳ |
 | 7 | Tailwind / shadcn removal + final QA | ⏳ Last |
 
-Phases 3-7 are page-by-page work spread across multiple sprints. Pick
-them off as the team has bandwidth; nothing in 3-7 blocks shipping
-new features in the meantime.
+**Critical**: Even with only 5 page bodies migrated, **every page is
+already rendering inside the new ADS shell** (TopNav, SideNav,
+breadcrumb bar) because `app.tsx` now returns `AppShell` from its
+layout selector. Pages whose bodies still use shadcn keep working
+inside the ADS chrome unchanged.
+
+### Pages migrated off shadcn / Tailwind so far
+
+1. `pages/ads-showcase.tsx` — worked example (datatable + filters + empty state + spinner)
+2. `pages/settings/billing/invoices.tsx` — table-style list with download
+3. `pages/settings/account/sessions.tsx` — list with confirm + Lozenge
+4. `pages/settings/integrations/connected.tsx` — list with brand icons + tag group
+5. `pages/settings/profile.tsx` — Inertia form with Input + Label + error binding
+6. `pages/settings/appearance.tsx` — minimal page heading + composed sub-component
+
+### Pages still on shadcn (61 of 66)
+
+These pages still import from `@/components/ui/*` for their body
+content. They render fine because the AppShell provides the ADS
+chrome; only their internal widgets are still shadcn.
+
+To find them: `grep -l "from '@/components/ui" resources/js/pages/**/*.tsx`.
+
+Suggested migration order (smallest first for fast wins):
+
+**Sprint A — small settings pages (~27 files, < 200 LOC each):**
+`settings/team/invitations.tsx`, `settings/data/{retention,audit-log,exports,gdpr}.tsx`,
+`settings/team/members.tsx`, `settings/billing/{plan,refunds,taxes,payouts,methods,gateways}.tsx`,
+`settings/operations/{ticket-templates,email-identity,webhooks,check-in}.tsx`,
+`settings/integrations/{index,oauth}.tsx`, `settings/developer/{logs,api-keys,webhooks}.tsx`,
+`settings/account/{api-tokens,security,notifications}.tsx`,
+`settings/appearance/{dates,locale}.tsx`,
+`settings/organization/{public,domain,brand}.tsx`,
+`settings/{help,roles/show}.tsx`, `marketing/{integrations,index,paid-ads}.tsx`,
+`calendar/index.tsx`.
+
+**Sprint B — top-level small/medium (~12 files, 200-300 LOC):**
+`notifications/index.tsx`, `attendees/index.tsx`,
+`marketing/{email-campaigns,social}.tsx`, `settings/teams.tsx`,
+`check-in/index.tsx`, `orders/{show,index}.tsx`,
+`scanners/index.tsx`, `settings/team-edit.tsx`,
+`reports/index.tsx`, `finance/refund.tsx`.
+
+**Sprint C — medium-large (~9 files, 300-600 LOC):**
+`dashboard.tsx`, `settings/roles/{role-form,index}.tsx`,
+`finance/index.tsx`, `discounts/index.tsx`,
+`scanners/show.tsx`, `welcome.tsx`,
+`organization/show.tsx`, `sandbox/payments/{inspector,dashboard}.tsx`,
+`events/index.tsx`.
+
+**Sprint D — giants (4 files, 700-1200 LOC):**
+`settings/organization.tsx` (730),
+`events/show.tsx` (1183), `events/edit.tsx` (1212),
+plus `components/event-ticket-manager.tsx` (1727 — used by events/edit + events/show).
+
+Each Sprint A page is ~5-10 min of focused work. Sprint B ~15-25
+min. Sprint C ~30-60 min. Sprint D is a half-day per file.
+
+Realistic timeline: a single engineer can clear Sprint A in ~2 days,
+Sprint B in ~3 days, Sprint C in ~3 days, Sprint D in ~1 week.
+Total: ~2 weeks of focused work to migrate all bodies + run Phase 7
+tear-down.
 
 ---
 
