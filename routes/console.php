@@ -82,3 +82,25 @@ Schedule::job(new DispatchPendingOutboxWebhooksJob)
 Schedule::job(new App\Jobs\Analytics\ComputeSelloutPredictionsJob)
     ->dailyAt('04:00')
     ->onOneServer();
+
+// Custody-ledger integrity verifier — walks every distinct ticket
+// chain and verifies prev_hash linkage + this_hash recomputes. Page
+// on-call if violations are found (Log::error → telemetry).
+Schedule::command('ledger:verify --chunk=500')
+    ->dailyAt('05:00')
+    ->onOneServer()
+    ->withoutOverlapping();
+
+// Outbox + webhook-delivery row pruning — keep rolling 90d window
+// for delivered, 365d for failed (so ops can investigate).
+Schedule::command('outbox:prune')
+    ->weeklyOn(0, '06:00')  // Sundays
+    ->onOneServer();
+
+// Daily integration-credential audit — fails loudly if an enabled
+// integration is missing required env. Output is captured by the
+// scheduler and logged; pair with a notify-on-failure cron hook.
+Schedule::command('integrations:validate --strict')
+    ->dailyAt('07:00')
+    ->onOneServer()
+    ->emailOutputOnFailure((string) env('OPS_ALERT_EMAIL', 'ops@example.com'));

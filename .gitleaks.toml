@@ -1,0 +1,24 @@
+# gitleaks config for example-app.
+# Default ruleset is extensive; this file augments it with project-
+# specific allowlist patterns to suppress known false positives.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Project allowlist"
+paths = [
+    '''\.env\.example$''',         # placeholder values only
+    '''node_modules/''',            # vendored dependencies
+    '''vendor/''',                  # composer vendored deps
+    '''public/build/''',            # vite-compiled assets
+    '''pnpm-lock\.yaml$''',
+    '''composer\.lock$''',
+    '''.*\.snap$''',
+    '''tests/.*Fixture.*''',        # synthetic fixtures
+]
+regexes = [
+    '''base64:[A-Za-z0-9+/=]{44}''',          # local APP_KEY placeholder in .env.example
+    '''sk_test_[A-Za-z0-9]{16,}''',           # known test secrets in fixtures
+    '''client_01[A-Za-z0-9]{20,}''',          # WorkOS client_id is identifier, not secret
+]

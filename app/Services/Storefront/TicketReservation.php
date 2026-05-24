@@ -176,5 +176,12 @@ class TicketReservation
     public function release(CheckoutSession $session): void
     {
         $session->items()->delete();
+
+        // Tell the waitlist about the freed inventory. Listener is
+        // queued so we don't hold the release call open while we email
+        // every pending entry.
+        \Illuminate\Support\Facades\Event::dispatch(
+            new \App\Events\CapacityReleased($session),
+        );
     }
 }

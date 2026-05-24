@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Events\CapacityReleased;
 use App\Events\TicketActivated;
 use App\Events\TicketScanned;
 use App\Events\TicketVoided;
 use App\Listeners\Scanning\PushActivatedTicketToEdgeListener;
 use App\Listeners\Scanning\PushVoidedTicketToEdgeListener;
 use App\Listeners\Scanning\QueueScanWebhook;
+use App\Listeners\Storefront\NotifyWaitlistOnRelease;
 use App\Models\Organization;
 use App\Services\Scanning\Contracts\BiometricProvider;
 use App\Services\Scanning\Contracts\ScanHistory;
@@ -65,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TicketScanned::class, QueueScanWebhook::class);
         Event::listen(TicketVoided::class, PushVoidedTicketToEdgeListener::class);
         Event::listen(TicketActivated::class, PushActivatedTicketToEdgeListener::class);
+        Event::listen(CapacityReleased::class, NotifyWaitlistOnRelease::class);
     }
 
     /**
