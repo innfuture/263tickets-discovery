@@ -1,8 +1,10 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
+    ArrowRight,
     BookText,
     CalendarDays,
+    CircleDollarSign,
     Clock,
     FileText,
     Globe2,
@@ -11,6 +13,8 @@ import {
     MapPin,
     Pencil,
     Phone,
+    Receipt,
+    ScanLine,
     Settings2,
     ShieldCheck,
     Star,
@@ -43,7 +47,7 @@ import { RichTextContent } from '@/components/rich-text-content';
 import { ShareMenu } from '@/components/share-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionTitle } from '@/components/ui/section-title';
@@ -1051,6 +1055,50 @@ export default function EventShow({ event, weather }: Props) {
 
                         <EventWeatherPanel forecasts={weather} />
 
+                        {/* Operations — quick jumps into the cross-event
+                            surfaces, pre-filtered by this event so the
+                            organizer doesn't have to re-select it. */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Operations</CardTitle>
+                                <CardDescription>
+                                    Day-to-day surfaces, scoped to this event.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-2 text-sm">
+                                <OpsLink
+                                    href={`/${teamSlug}/attendees?event=${event.slug}`}
+                                    icon={<Users className="size-4" />}
+                                    label="Attendees"
+                                    sub="Roster, contact, CSV export"
+                                />
+                                <OpsLink
+                                    href={`/${teamSlug}/check-in`}
+                                    icon={<ScanLine className="size-4" />}
+                                    label="Check-in"
+                                    sub="Scan tickets at the gate"
+                                />
+                                <OpsLink
+                                    href={`/${teamSlug}/orders?event=${event.slug}`}
+                                    icon={<Receipt className="size-4" />}
+                                    label="Orders"
+                                    sub="Filtered to this event"
+                                />
+                                <OpsLink
+                                    href={`/${teamSlug}/discounts`}
+                                    icon={<Tag className="size-4" />}
+                                    label="Discounts"
+                                    sub="Add promos to this event's tickets"
+                                />
+                                <OpsLink
+                                    href={`/${teamSlug}/finance?event=${event.slug}`}
+                                    icon={<CircleDollarSign className="size-4" />}
+                                    label="Finance"
+                                    sub="Revenue for this event + refunds queue"
+                                />
+                            </CardContent>
+                        </Card>
+
                         <EventAnalyticsDashboard
                             teamSlug={teamSlug}
                             eventSlug={event.slug}
@@ -1067,6 +1115,32 @@ export default function EventShow({ event, weather }: Props) {
                 </div>
             </div>
         </>
+    );
+}
+
+function OpsLink({
+    href,
+    icon,
+    label,
+    sub,
+}: {
+    href: string;
+    icon: React.ReactNode;
+    label: string;
+    sub: string;
+}) {
+    return (
+        <Link
+            href={href}
+            className="flex items-center gap-3 rounded-md border bg-card p-2 transition hover:bg-muted/60"
+        >
+            <span className="rounded bg-muted p-1.5 text-muted-foreground">{icon}</span>
+            <span className="flex-1">
+                <span className="block font-medium">{label}</span>
+                <span className="block text-xs text-muted-foreground">{sub}</span>
+            </span>
+            <ArrowRight className="size-3.5 text-muted-foreground" />
+        </Link>
     );
 }
 

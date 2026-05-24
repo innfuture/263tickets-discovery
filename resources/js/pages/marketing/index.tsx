@@ -22,10 +22,19 @@ type Permissions = {
     paidAds: boolean;
 };
 
+type Stats = {
+    email_campaigns: number;
+    social_posts: number;
+    ad_campaigns: number;
+    connected_integrations: number;
+};
+
 export default function MarketingIndex({
     permissions,
+    stats,
 }: {
     permissions: Permissions;
+    stats?: Stats;
 }) {
     const page = usePage<{
         currentOrganization?: { slug: string } | null;
@@ -40,6 +49,7 @@ export default function MarketingIndex({
             visible: permissions.email,
             icon: Mail,
             title: 'Email campaigns',
+            count: stats?.email_campaigns,
             href: `${base}/email-campaigns`,
             blurb: 'Connect with your audience through custom newsletters and event announcements. Re-engage past attendees with targeted sends.',
         },
@@ -48,6 +58,7 @@ export default function MarketingIndex({
             visible: permissions.social || permissions.facebookEvent,
             icon: Share2,
             title: 'Social media',
+            count: stats?.social_posts,
             href: `${base}/social`,
             blurb: 'Share to TikTok, LinkedIn, Instagram, and your Facebook page in a few clicks. Sell more tickets to a wider audience.',
         },
@@ -56,6 +67,7 @@ export default function MarketingIndex({
             visible: permissions.paidAds,
             icon: Megaphone,
             title: 'Paid Social Ads',
+            count: stats?.ad_campaigns,
             href: `${base}/paid-ads`,
             blurb: 'Spin up Facebook + Instagram ads that put your events in front of warm audiences. Pause, sync, and measure from here.',
         },
@@ -64,6 +76,7 @@ export default function MarketingIndex({
             visible: true,
             icon: Cable,
             title: 'Integrations',
+            count: stats?.connected_integrations,
             href: `${base}/integrations`,
             blurb: 'Connect TikTok, Instagram, LinkedIn, Facebook, and Mailchimp. Marketing surfaces above only light up once their integration is connected.',
         },
@@ -93,9 +106,14 @@ export default function MarketingIndex({
                                             <div className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
                                                 <c.icon className="size-4" />
                                             </div>
-                                            <CardTitle className="text-base">
-                                                {c.title}
-                                            </CardTitle>
+                                            <div>
+                                                <CardTitle className="text-base">{c.title}</CardTitle>
+                                                {c.count !== undefined && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {c.count.toLocaleString()} on record
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                         <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                                     </div>

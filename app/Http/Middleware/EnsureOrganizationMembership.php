@@ -7,6 +7,7 @@ use App\Models\Organization;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -38,7 +39,7 @@ class EnsureOrganizationMembership
         // Tell Spatie which org we're acting in — every $user->can()
         // and $user->hasRole() call downstream resolves against this
         // org's rows in model_has_roles / model_has_permissions.
-        app(\Spatie\Permission\PermissionRegistrar::class)
+        app(PermissionRegistrar::class)
             ->setPermissionsTeamId($org->id);
 
         return $next($request);

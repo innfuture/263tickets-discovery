@@ -1,0 +1,70 @@
+{
+  "name": "Issue comp tickets from a Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "hours", "hoursInterval": 1}]}
+      },
+      "name": "Hourly trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": "={{ $env.SPONSOR_SHEET_ID }}",
+        "sheetName": "comps",
+        "lookupColumn": "status",
+        "lookupValue": "pending"
+      },
+      "name": "Read pending rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.EXAMPLE_APP_BASE_URL }}/api/v1/automations/orders",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "=Bearer {{ $env.EXAMPLE_APP_AUTOMATION_TOKEN }}"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n  \"event_slug\": \"{{ $json.event_slug }}\",\n  \"buyer_name\": \"{{ $json.name }}\",\n  \"buyer_email\": \"{{ $json.email }}\",\n  \"payment_method\": \"comp\",\n  \"currency\": \"USD\",\n  \"items\": [{\"ticket_category_id\": {{ $json.tier_id }}, \"quantity\": {{ $json.quantity }}}]\n}"
+      },
+      "name": "Issue comp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "={{ $env.SPONSOR_SHEET_ID }}",
+        "sheetName": "comps",
+        "valueToMatchOn": "={{ $json.email }}",
+        "columnsToMatchOn": ["email"],
+        "fieldsUi": {"values": [{"column": "status", "fieldValue": "issued"}]}
+      },
+      "name": "Mark issued",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Hourly trigger": {"main": [[{"node": "Read pending rows", "type": "main", "index": 0}]]},
+    "Read pending rows": {"main": [[{"node": "Issue comp", "type": "main", "index": 0}]]},
+    "Issue comp": {"main": [[{"node": "Mark issued", "type": "main", "index": 0}]]}
+  },
+  "meta": {
+    "description": "Polls a Google Sheet for pending sponsor allocations and issues comp tickets via the automation API. Mark rows back as 'issued' to avoid re-running.",
+    "required_env": ["SPONSOR_SHEET_ID", "EXAMPLE_APP_BASE_URL", "EXAMPLE_APP_AUTOMATION_TOKEN"],
+    "required_scopes": ["orders.write"]
+  }
+}

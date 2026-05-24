@@ -8,9 +8,9 @@ use App\Exceptions\InvalidEventStatusTransition;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\AdCampaign;
-use App\Models\TicketCategory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -172,9 +172,9 @@ class Event extends Model
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventLineupArtist, $this>
+     * @return HasMany<EventLineupArtist, $this>
      */
-    public function lineupArtists(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function lineupArtists(): HasMany
     {
         return $this->hasMany(EventLineupArtist::class)
             ->orderByDesc('is_headliner')
@@ -182,9 +182,9 @@ class Event extends Model
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventAgendaEntry, $this>
+     * @return HasMany<EventAgendaEntry, $this>
      */
-    public function agendaEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function agendaEntries(): HasMany
     {
         return $this->hasMany(EventAgendaEntry::class)
             ->orderBy('starts_at')
@@ -192,9 +192,9 @@ class Event extends Model
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventMediaItem, $this>
+     * @return HasMany<EventMediaItem, $this>
      */
-    public function mediaItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function mediaItems(): HasMany
     {
         return $this->hasMany(EventMediaItem::class)
             ->orderByDesc('is_primary')
@@ -202,9 +202,9 @@ class Event extends Model
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<TicketCategory, $this>
+     * @return HasMany<TicketCategory, $this>
      */
-    public function ticketCategories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function ticketCategories(): HasMany
     {
         return $this->hasMany(TicketCategory::class)
             ->orderBy('sort_order');
@@ -214,18 +214,18 @@ class Event extends Model
      * Sponsors backing the event, ordered by tier prominence then sort_order.
      * Tier rank is applied in PHP after fetch (see EventController payload).
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventSponsor, $this>
+     * @return HasMany<EventSponsor, $this>
      */
-    public function sponsors(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function sponsors(): HasMany
     {
         return $this->hasMany(EventSponsor::class)
             ->orderBy('sort_order');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<EventAmenity, $this>
+     * @return HasMany<EventAmenity, $this>
      */
-    public function amenities(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function amenities(): HasMany
     {
         return $this->hasMany(EventAmenity::class)
             ->orderByDesc('is_highlighted')
@@ -237,9 +237,9 @@ class Event extends Model
      * legacy queries). New code on other resources should use the polymorphic
      * `morphMany(AdCampaign::class, 'owner')` instead.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<AdCampaign, $this>
+     * @return HasMany<AdCampaign, $this>
      */
-    public function adCampaigns(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function adCampaigns(): HasMany
     {
         return $this->hasMany(AdCampaign::class);
     }
@@ -248,19 +248,19 @@ class Event extends Model
      * Polymorphic accessor for ad campaigns. Equivalent to `adCampaigns()` for
      * events but available to any model via the polymorphic owner columns.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany<AdCampaign, $this>
+     * @return MorphMany<AdCampaign, $this>
      */
-    public function ownedAdCampaigns(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function ownedAdCampaigns(): MorphMany
     {
         return $this->morphMany(AdCampaign::class, 'owner');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\EventPageView, $this>
+     * @return HasMany<EventPageView, $this>
      */
-    public function pageViews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function pageViews(): HasMany
     {
-        return $this->hasMany(\App\Models\EventPageView::class);
+        return $this->hasMany(EventPageView::class);
     }
 
     public function transitionTo(EventStatus $to): self

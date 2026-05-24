@@ -131,8 +131,8 @@ return new class extends Migration
                 $table->string('reason', 120)->nullable();
                 $table->string('actor', 24)->default('system');          // system|user|webhook|scenario|clock
                 $table->json('context')->nullable();
-                $table->timestamp('occurred_at');                        // wall time
-                $table->timestamp('virtual_time_at');                    // sandbox-clock time
+                $table->timestamp('occurred_at')->nullable();            // wall time (app always writes)
+                $table->timestamp('virtual_time_at')->nullable();        // sandbox-clock time
                 $table->index(['sandbox_transaction_id', 'occurred_at']);
             });
         }
@@ -183,7 +183,7 @@ return new class extends Migration
                 $table->json('headers')->nullable();
                 $table->string('signature', 256)->nullable();
 
-                $table->timestamp('scheduled_for')->index();
+                $table->timestamp('scheduled_for')->nullable()->index();
                 $table->timestamp('last_attempt_at')->nullable();
                 $table->unsignedTinyInteger('attempts')->default(0);
                 $table->string('status', 16)->default('queued');         // queued|delivering|delivered|failed|dropped
@@ -204,7 +204,7 @@ return new class extends Migration
                 $table->string('request_hash', 64);                       // sha256 of canonical request
                 $table->unsignedSmallInteger('response_status');
                 $table->json('response_body');
-                $table->timestamp('expires_at');
+                $table->timestamp('expires_at')->nullable();
                 $table->timestamps();
                 $table->unique(['sandbox_merchant_id', 'key']);
                 $table->index('expires_at');

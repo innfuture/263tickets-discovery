@@ -39,7 +39,7 @@ return new class extends Migration
 
                 // T+N settlement gate. `available_at` < now() means the
                 // amount counts toward "available"; otherwise "pending".
-                $table->timestamp('available_at');
+                $table->timestamp('available_at')->nullable();
                 $table->timestamps();
 
                 $table->index(['sandbox_merchant_id', 'available_at']);

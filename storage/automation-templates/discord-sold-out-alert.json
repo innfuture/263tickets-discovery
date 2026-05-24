@@ -1,0 +1,46 @@
+{
+  "name": "Discord alert when an event sells out",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "example-app-sold-out",
+        "responseMode": "lastNode"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{ $json.body.type }}", "value2": "event.sold_out"}]
+        }
+      },
+      "name": "Only sold_out",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "webhookUri": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "text": "🚨 **SOLD OUT** — {{ $json.body.data.event.name }} ({{ $json.body.data.event.tickets_sold }}/{{ $json.body.data.event.capacity }})"
+      },
+      "name": "Discord",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [680, 220]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Only sold_out", "type": "main", "index": 0}]]},
+    "Only sold_out": {"main": [[{"node": "Discord", "type": "main", "index": 0}], []]}
+  },
+  "meta": {
+    "description": "Filters incoming webhooks to event.sold_out and posts to a Discord channel.",
+    "subscribed_events": ["event.sold_out", "event.inventory_changed"],
+    "required_env": ["DISCORD_WEBHOOK_URL"]
+  }
+}

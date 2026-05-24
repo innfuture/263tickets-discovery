@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -71,7 +72,7 @@ class HandleInertiaRequests extends Middleware
     /**
      * @return array<string, bool>
      */
-    private function permissionsMap(?\App\Models\User $user): array
+    private function permissionsMap(?User $user): array
     {
         if (! $user || ! $user->currentOrganization) {
             return [];

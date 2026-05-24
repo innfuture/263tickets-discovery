@@ -1,0 +1,20 @@
+name = "example-app-scanner-edge"
+main = "src/index.ts"
+compatibility_date = "2024-09-01"
+account_id = "" # set in your Cloudflare account
+
+[vars]
+ORIGIN_URL = "https://app.example.com"
+# QR payload format: "<uuid>.<hmac24hex>" — must match the secret used
+# in OrderFulfillment::issueOfflineTicket (currently `config('app.key')`).
+QR_HMAC_BYTES = "12"
+
+[[kv_namespaces]]
+# Voided ticket cache — populated by an origin-side process that
+# tails the OfflineTicket void stream. Used so we can early-deny a
+# scan even when the ticket signature is technically valid.
+binding = "VOIDED_TICKETS"
+id = "" # cf kv:namespace create voided-tickets
+
+# QR signing secret — set with `wrangler secret put QR_SIGNING_SECRET`.
+# Must match the origin's `APP_KEY` / `config('app.key')` decoded value.

@@ -12,8 +12,8 @@ use App\Http\Controllers\Settings\Account\SessionController;
 use App\Http\Controllers\Settings\Appearance\DateFormatController;
 use App\Http\Controllers\Settings\Appearance\LocaleController;
 use App\Http\Controllers\Settings\Billing\InvoiceController;
-use App\Http\Controllers\Settings\Billing\PaymentMethodController;
 use App\Http\Controllers\Settings\Billing\PaymentGatewayController;
+use App\Http\Controllers\Settings\Billing\PaymentMethodController;
 use App\Http\Controllers\Settings\Billing\PayoutController;
 use App\Http\Controllers\Settings\Billing\PlanController;
 use App\Http\Controllers\Settings\Billing\RefundPolicyController;
@@ -25,6 +25,7 @@ use App\Http\Controllers\Settings\Data\RetentionController;
 use App\Http\Controllers\Settings\Developer\ApiKeyController;
 use App\Http\Controllers\Settings\Developer\ApiLogController;
 use App\Http\Controllers\Settings\Developer\WebhookController as DeveloperWebhookController;
+use App\Http\Controllers\Settings\HelpController;
 use App\Http\Controllers\Settings\Integrations\ConnectedController as IntegrationConnectedController;
 use App\Http\Controllers\Settings\Integrations\IntegrationController;
 use App\Http\Controllers\Settings\Integrations\OAuthAppController;
@@ -57,6 +58,11 @@ Route::middleware([
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
+
+    // Help & support — docs, FAQ, contact form. Permission-free; every
+    // signed-in user can ask for help.
+    Route::get('settings/help', [HelpController::class, 'show'])->name('help.show');
+    Route::post('settings/help', [HelpController::class, 'submit'])->name('help.submit');
 
     Route::get('settings/notifications', [NotificationPreferencesController::class, 'edit'])->name('account.notifications.edit');
     Route::patch('settings/notifications', [NotificationPreferencesController::class, 'update'])->name('account.notifications.update');

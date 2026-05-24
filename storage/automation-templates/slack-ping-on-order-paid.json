@@ -1,0 +1,46 @@
+{
+  "name": "Slack ping on every order paid",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "example-app-order-paid",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "example-app-order-paid"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify the example-app HMAC signature before trusting the body.\nconst crypto = require('crypto');\nconst secret = $env.EXAMPLE_APP_WEBHOOK_SECRET;\nconst header = $input.first().json.headers?.['x-example-app-signature'] || '';\nconst raw = JSON.stringify($input.first().json.body);\n\nconst parts = Object.fromEntries(header.split(',').map(p => p.trim().split('=', 2)));\nconst t = parseInt(parts.t || 0, 10);\nconst v1 = parts.v1 || '';\nif (!t || !v1) throw new Error('Bad signature header');\nif (Math.abs(Date.now() / 1000 - t) > 300) throw new Error('Signature too old');\n\nconst expected = crypto.createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex');\nlet ok = expected.length === v1.length;\nfor (let i = 0; i < expected.length && i < v1.length; i++) {\n  ok &= expected.charCodeAt(i) ^ v1.charCodeAt(i) ? 0 : 1;\n}\nif (!ok) throw new Error('Signature mismatch');\n\nreturn $input.first().json;"
+      },
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#sales",
+        "text": "=💸 {{ $json.body.data.event.name }} — *{{ $json.body.data.buyer.name }}* spent {{ ($json.body.data.order.total_cents / 100).toFixed(2) }} {{ $json.body.data.order.currency }}\\nReference: `{{ $json.body.data.order.reference }}`"
+      },
+      "name": "Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Verify HMAC", "type": "main", "index": 0}]]},
+    "Verify HMAC": {"main": [[{"node": "Slack", "type": "main", "index": 0}]]}
+  },
+  "meta": {
+    "description": "Subscribes to order.paid webhooks from example-app and pings a Slack channel with the buyer + total.",
+    "subscribed_events": ["order.paid"],
+    "required_env": ["EXAMPLE_APP_WEBHOOK_SECRET"]
+  }
+}
