@@ -263,6 +263,11 @@ class PublicStorefrontServiceProvider extends ServiceProvider
             return Limit::perMinute($perTokenLimit)->by($key);
         });
 
+        // Scanner pairing: per-IP bucket. Pairing is one-time-code
+        // exchange; legitimate clients call this at most a handful of
+        // times. Tight cap blunts pairing-code brute force.
+        RateLimiter::for('scanner-pair', fn (Request $request) => Limit::perMinute(5)->by((string) ($request->ip() ?? 'anon')));
+
         // Developer API: per-key bucket honouring the key's tier
         // (Free 60/min, Basic 120, Enterprise 1000, Premium 5000).
         RateLimiter::for('developer-key', function (Request $request) {
@@ -274,6 +279,17 @@ class PublicStorefrontServiceProvider extends ServiceProvider
             $perMin = (int) ($policy['requests_per_minute'] ?? 60);
 
             return Limit::perMinute($perMin)->by('dvkey:'.$key->id);
+        });
+
+        // Distributor POS device: per-device bucket on resolved
+        // attributes. Generous default — a busy POS at a stadium
+        // gate can legitimately push tens of sales per minute. The
+        // SalesVelocityGuard handles abusive bursts separately.
+        RateLimiter::for('distributor-device', function (Request $request) {
+            $device = $request->attributes->get('distributor_device');
+            $key = $device?->id ? 'device:'.$device->id : 'ip:'.$request->ip();
+
+            return Limit::perMinute(120)->by($key);
         });
     }
 }

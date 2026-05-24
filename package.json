@@ -2,6 +2,7 @@
     "$schema": "https://www.schemastore.org/package.json",
     "private": true,
     "type": "module",
+    "packageManager": "pnpm@11.3.0",
     "scripts": {
         "build": "vite build",
         "build:ssr": "vite build && vite build --ssr",
@@ -48,6 +49,7 @@
         "@radix-ui/react-label": "^2.1.2",
         "@radix-ui/react-navigation-menu": "^1.2.5",
         "@radix-ui/react-popover": "^1.1.15",
+        "@radix-ui/react-progress": "^1.1.8",
         "@radix-ui/react-select": "^2.1.6",
         "@radix-ui/react-separator": "^1.1.2",
         "@radix-ui/react-slot": "^1.2.3",
@@ -69,6 +71,7 @@
         "clsx": "^2.1.1",
         "concurrently": "^9.0.1",
         "date-fns": "^4.2.1",
+        "dompurify": "^3.2.4",
         "embla-carousel-react": "^8.6.0",
         "globals": "^15.14.0",
         "input-otp": "^1.4.2",

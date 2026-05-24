@@ -105,4 +105,16 @@ return [
         'timeout_seconds' => 5,
     ],
 
+    'edge' => [
+        // Cloudflare KV bridge for the scanner-edge worker. When all
+        // three values are present, the PushVoidedTicketToEdgeJob
+        // upserts voided ticket UUIDs into the KV namespace so the
+        // edge can deny scans without an origin round-trip.
+        'kv' => [
+            'account_id' => env('SCANNING_EDGE_KV_ACCOUNT_ID'),
+            'namespace_id' => env('SCANNING_EDGE_KV_NAMESPACE_ID'),
+            'api_token' => env('SCANNING_EDGE_KV_API_TOKEN'),
+        ],
+    ],
+
 ];

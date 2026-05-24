@@ -17,16 +17,17 @@ use Illuminate\Support\Str;
 /**
  * Developer self-service for the public API.
  *
- *   POST   /api/developer/portal/accounts                register
- *   GET    /api/developer/portal/accounts/{uuid}         account + subscription
- *   POST   /api/developer/portal/accounts/{uuid}/keys    mint a key (plaintext once)
- *   GET    /api/developer/portal/accounts/{uuid}/keys    list keys (no secret)
- *   DELETE /api/developer/portal/accounts/{uuid}/keys/{key_uuid}  revoke
- *   POST   /api/developer/portal/accounts/{uuid}/subscribe       set tier
+ *   POST   /api/developer/portal/accounts                    register (open)
+ *   GET    /api/developer/portal/accounts/{uuid}             account + subscription (bearer)
+ *   POST   /api/developer/portal/accounts/{uuid}/keys        mint a key (bearer)
+ *   GET    /api/developer/portal/accounts/{uuid}/keys        list keys (bearer)
+ *   DELETE /api/developer/portal/accounts/{uuid}/keys/{u}    revoke key (bearer)
+ *   POST   /api/developer/portal/accounts/{uuid}/subscribe   set tier (bearer)
+ *   POST   /api/developer/portal/accounts/{uuid}/rotate-token rotate portal token (bearer)
  *
- * Auth here is intentionally light (registration is open) — billing
- * lives in a separate Stripe-style flow; this controller only
- * captures intent + activates the tier on the account.
+ * Registration is the only open endpoint. It returns the
+ * portal_bootstrap_token in plaintext exactly once; every other
+ * mutation requires `Authorization: Bearer <token>`.
  */
 class DeveloperPortalController extends Controller
 {
@@ -40,11 +41,22 @@ class DeveloperPortalController extends Controller
             'website' => ['nullable', 'url', 'max:500'],
         ]);
 
-        $account = DeveloperAccount::query()
-            ->firstOrCreate(['email' => strtolower($validated['email'])], $validated);
+        $existing = DeveloperAccount::query()
+            ->where('email', strtolower($validated['email']))
+            ->first();
 
-        // Auto-start a Free subscription so the account is immediately
-        // usable for issuing Free keys.
+        $plaintext = null;
+
+        if ($existing) {
+            $account = $existing;
+        } else {
+            $plaintext = $this->generateBootstrapToken();
+            $account = DeveloperAccount::query()->create($validated + [
+                'portal_bootstrap_token_hash' => hash('sha256', $plaintext),
+                'portal_bootstrap_token_rotated_at' => now(),
+            ]);
+        }
+
         DeveloperSubscription::query()->firstOrCreate(
             [
                 'developer_account_id' => $account->id,
@@ -58,17 +70,17 @@ class DeveloperPortalController extends Controller
                 'uuid' => $account->uuid,
                 'email' => $account->email,
                 'tier' => DeveloperSubscription::TIER_FREE,
+                'portal_bootstrap_token' => $plaintext,
+                'note' => $plaintext
+                    ? 'Token shown once — store it. Use as Authorization: Bearer <token>.'
+                    : 'Account already exists. Rotate the token to receive a new one.',
             ],
         ], $account->wasRecentlyCreated ? 201 : 200);
     }
 
-    public function show(string $uuid): JsonResponse
+    public function show(Request $request, string $uuid): JsonResponse
     {
-        $account = DeveloperAccount::query()->where('uuid', $uuid)->first();
-        if (! $account) {
-            return response()->json(['error' => 'not_found'], 404);
-        }
-
+        $account = $this->resolveAccount($request, $uuid);
         $sub = $account->activeSubscription;
 
         return response()->json([
@@ -91,11 +103,7 @@ class DeveloperPortalController extends Controller
 
     public function issueKey(Request $request, string $uuid): JsonResponse
     {
-        $account = DeveloperAccount::query()->where('uuid', $uuid)->first();
-        if (! $account) {
-            return response()->json(['error' => 'not_found'], 404);
-        }
-
+        $account = $this->resolveAccount($request, $uuid);
         $sub = $account->activeSubscription;
         $tier = $sub?->tier ?? DeveloperSubscription::TIER_FREE;
         $policy = DeveloperTierPolicy::for($tier);
@@ -107,7 +115,6 @@ class DeveloperPortalController extends Controller
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
-        // Defaults: every scope the tier permits.
         $requested = (array) ($validated['scopes'] ?? $policy['allowed_scopes']);
         $scopes = array_values(array_intersect($requested, (array) $policy['allowed_scopes']));
         if (empty($scopes) && ! in_array('*', $policy['allowed_scopes'], true)) {
@@ -142,12 +149,9 @@ class DeveloperPortalController extends Controller
         ], 201);
     }
 
-    public function listKeys(string $uuid): JsonResponse
+    public function listKeys(Request $request, string $uuid): JsonResponse
     {
-        $account = DeveloperAccount::query()->where('uuid', $uuid)->first();
-        if (! $account) {
-            return response()->json(['error' => 'not_found'], 404);
-        }
+        $account = $this->resolveAccount($request, $uuid);
 
         return response()->json([
             'data' => $account->apiKeys()
@@ -160,10 +164,10 @@ class DeveloperPortalController extends Controller
         ]);
     }
 
-    public function revokeKey(string $uuid, string $keyUuid): JsonResponse
+    public function revokeKey(Request $request, string $uuid, string $keyUuid): JsonResponse
     {
-        $account = DeveloperAccount::query()->where('uuid', $uuid)->first();
-        $key = $account?->apiKeys()->where('uuid', $keyUuid)->first();
+        $account = $this->resolveAccount($request, $uuid);
+        $key = $account->apiKeys()->where('uuid', $keyUuid)->first();
         if (! $key) {
             return response()->json(['error' => 'not_found'], 404);
         }
@@ -174,18 +178,12 @@ class DeveloperPortalController extends Controller
 
     public function subscribe(Request $request, string $uuid): JsonResponse
     {
-        $account = DeveloperAccount::query()->where('uuid', $uuid)->first();
-        if (! $account) {
-            return response()->json(['error' => 'not_found'], 404);
-        }
+        $account = $this->resolveAccount($request, $uuid);
 
         $validated = $request->validate([
             'tier' => ['required', 'in:'.implode(',', DeveloperSubscription::ALL_TIERS)],
         ]);
 
-        // End the prior active sub, start a new one. We don't bill
-        // here — that's a Stripe-side concern. The dashboard would
-        // gate this behind a paywall in front of the API.
         DeveloperSubscription::query()
             ->where('developer_account_id', $account->id)
             ->where('billing_status', 'active')
@@ -205,5 +203,42 @@ class DeveloperPortalController extends Controller
                 'starts_at' => $sub->starts_at?->toIso8601String(),
             ],
         ]);
+    }
+
+    public function rotateToken(Request $request, string $uuid): JsonResponse
+    {
+        $account = $this->resolveAccount($request, $uuid);
+        $plaintext = $this->generateBootstrapToken();
+
+        $account->forceFill([
+            'portal_bootstrap_token_hash' => hash('sha256', $plaintext),
+            'portal_bootstrap_token_rotated_at' => now(),
+        ])->save();
+
+        return response()->json([
+            'data' => [
+                'portal_bootstrap_token' => $plaintext,
+                'rotated_at' => $account->portal_bootstrap_token_rotated_at?->toIso8601String(),
+                'note' => 'Token shown once — store it. Previous token is invalidated.',
+            ],
+        ]);
+    }
+
+    protected function resolveAccount(Request $request, string $uuid): DeveloperAccount
+    {
+        $cached = $request->attributes->get('developer_account');
+        if ($cached instanceof DeveloperAccount && $cached->uuid === $uuid) {
+            return $cached;
+        }
+
+        $account = DeveloperAccount::query()->where('uuid', $uuid)->firstOrFail();
+        $request->attributes->set('developer_account', $account);
+
+        return $account;
+    }
+
+    protected function generateBootstrapToken(): string
+    {
+        return 'dpt_'.Str::random(48);
     }
 }

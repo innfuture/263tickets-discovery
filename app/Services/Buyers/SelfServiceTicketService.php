@@ -138,6 +138,11 @@ class SelfServiceTicketService
                     'voided_at' => now(),
                     'void_reason' => 'buyer_self_void',
                 ]);
+
+                $ticket = OfflineTicket::query()->find($item->offline_ticket_id);
+                if ($ticket) {
+                    \App\Events\TicketVoided::dispatch($ticket, 'buyer_self_void');
+                }
             }
 
             return RefundRequest::create([

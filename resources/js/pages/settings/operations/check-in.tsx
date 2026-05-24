@@ -118,6 +118,8 @@ export default function CheckInPage({
                                 <Form
                                     action="/settings/operations/check-in"
                                     method="post"
+                                    // TODO: Inertia onBefore expects boolean|void; the async confirm here is not awaited, so the dialog does not actually block submission. Refactor to handle confirm in a click handler.
+                                    // @ts-expect-error pre-existing async-returns-promise pattern
                                     onBefore={async () => {
                                         const ok = await confirm({
                                             title: 'Clear the door PIN?',

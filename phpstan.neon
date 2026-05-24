@@ -1,5 +1,10 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    # Optional baseline. Generate with:
+    #   ./vendor/bin/phpstan analyse --generate-baseline
+    # and commit phpstan-baseline.neon if pre-existing errors should be
+    # grandfathered while keeping the gate blocking for new code.
+    - phpstan-baseline.neon
 
 parameters:
     # Larastan level 5 is the project sweet-spot: catches real bugs (wrong

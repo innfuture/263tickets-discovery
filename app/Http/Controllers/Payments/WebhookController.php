@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\Payments\ProcessWebhookEventJob;
 use App\Models\PaymentWebhookEvent;
 use App\Services\Payments\Contracts\HandlesWebhooks;
+use App\Services\Payments\Contracts\ProvidesWebhookTimestamp;
 use App\Services\Payments\Exceptions\PaymentException;
 use App\Services\Payments\Exceptions\WebhookSignatureException;
 use App\Services\Payments\PaymentManager;
@@ -23,11 +24,12 @@ use Illuminate\Support\Facades\Log;
  *
  *   1. Resolve driver by URL segment.
  *   2. Require the driver implements HandlesWebhooks (otherwise 404).
- *   3. Verify signature — driver throws WebhookSignatureException on
- *      mismatch and we 401, logging the attempt.
- *   4. Parse the payload into a normalised WebhookEvent.
- *   5. Dedupe by sha256 of the raw body. Duplicates short-circuit to
- *      200 OK so providers stop retrying.
+ *   3. Verify signature FIRST — unsigned bodies are not allowed to
+ *      short-circuit dedupe to a 200, which would let an attacker poison
+ *      the dedupe table.
+ *   4. If the driver can extract a signed timestamp, enforce a replay
+ *      tolerance window.
+ *   5. Only then dedupe by sha256 of the raw body.
  *   6. Persist a PaymentWebhookEvent row and dispatch
  *      ProcessWebhookEventJob to apply side effects asynchronously.
  *
@@ -50,16 +52,9 @@ class WebhookController extends Controller
             return response()->json(['error' => 'gateway_does_not_handle_webhooks'], 404);
         }
 
-        $rawBody = $request->getContent();
-        $signatureHash = hash('sha256', $rawBody);
-
-        $duplicate = PaymentWebhookEvent::where('signature_hash', $signatureHash)
-            ->where('gateway', $gateway)
-            ->first();
-        if ($duplicate !== null) {
-            return response()->json(['status' => 'duplicate'], 200);
-        }
-
+        // 1. Verify signature BEFORE touching the dedupe table — an
+        //    unsigned/forged request must not be able to register a
+        //    body-hash entry that later silences a real webhook.
         try {
             $driver->verifyWebhook($request);
         } catch (WebhookSignatureException $e) {
@@ -70,6 +65,35 @@ class WebhookController extends Controller
             ]);
 
             return response()->json(['error' => 'invalid_signature'], 401);
+        }
+
+        // 2. Reject replays outside the driver's tolerance window.
+        if ($driver instanceof ProvidesWebhookTimestamp) {
+            $signedAt = $driver->webhookTimestamp($request);
+            if ($signedAt !== null) {
+                $skew = abs(time() - $signedAt);
+                if ($skew > $driver->webhookReplayToleranceSeconds()) {
+                    Log::warning('payment.webhook.replay_window_exceeded', [
+                        'gateway' => $gateway,
+                        'skew_seconds' => $skew,
+                        'tolerance' => $driver->webhookReplayToleranceSeconds(),
+                        'ip' => $request->ip(),
+                    ]);
+
+                    return response()->json(['error' => 'replay_window_exceeded'], 401);
+                }
+            }
+        }
+
+        // 3. Dedupe by signed body hash.
+        $rawBody = $request->getContent();
+        $signatureHash = hash('sha256', $rawBody);
+
+        $duplicate = PaymentWebhookEvent::where('signature_hash', $signatureHash)
+            ->where('gateway', $gateway)
+            ->first();
+        if ($duplicate !== null) {
+            return response()->json(['status' => 'duplicate'], 200);
         }
 
         $event = $driver->parseWebhook($request);

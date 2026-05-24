@@ -23,10 +23,16 @@ class DeveloperAccount extends Model
     protected $fillable = [
         'uuid', 'email', 'name', 'company', 'country_code',
         'website', 'status', 'metadata',
+        'portal_bootstrap_token_hash', 'portal_bootstrap_token_rotated_at',
     ];
 
     protected $casts = [
         'metadata' => 'array',
+        'portal_bootstrap_token_rotated_at' => 'datetime',
+    ];
+
+    protected $hidden = [
+        'portal_bootstrap_token_hash',
     ];
 
     protected static function boot(): void

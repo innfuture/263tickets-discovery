@@ -22,8 +22,9 @@
  *      passed through unchanged.
  *   6. Return origin's response verbatim.
  *
- * Origin must be configured to write voids into the KV namespace
- * (see `OfflineTicket::void` observer — TODO on the origin side).
+ * Origin writes voids into the KV namespace via PushVoidedTicketToEdgeJob,
+ * triggered by the TicketVoided event (see app/Events/TicketVoided.php
+ * and app/Providers/AppServiceProvider::registerEventListeners()).
  */
 export interface Env {
   ORIGIN_URL: string;

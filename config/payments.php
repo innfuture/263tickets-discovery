@@ -39,6 +39,17 @@ return [
         'replay_window_seconds' => 600,
     ],
 
+    'idempotency' => [
+        // PaymentManager::charge($gateway, $request, $idempotencyKey)
+        // caches the original ChargeResult under this key for the TTL.
+        // Same key inside the window returns the cached result instead
+        // of re-charging. Header callers (HTTP) should send Idempotency-Key.
+        'header' => env('PAYMENTS_IDEMPOTENCY_HEADER', 'Idempotency-Key'),
+        'ttl_seconds' => (int) env('PAYMENTS_IDEMPOTENCY_TTL', 86400),
+        // Empty string uses the default cache store.
+        'cache_store' => env('PAYMENTS_IDEMPOTENCY_CACHE_STORE', ''),
+    ],
+
     'sandbox' => [
         // Hard refuse to boot in production unless explicitly allowed
         // (§9). Two-layer guard: this flag + the driver constructor.

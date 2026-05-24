@@ -532,3 +532,43 @@ Server is a thin Yjs persistence layer + a presence channel. CRDT merging happen
 - **Edge workers**: 2 (scanner-edge, storefront-edge)
 - **Scheduled jobs**: 7 (+ sellout predictions daily)
 - **AI-ready**: full content surfaces (embeddings + assistant) via stub-by-default contracts
+
+---
+
+## Recent audit fixes (2026-05)
+
+A 7-commit remediation pass closed 18 verified findings from the
+multi-agent audit. Highlights, by area:
+
+- **Developer portal auth** — `portal_bootstrap_token` issued once at
+  registration; all mutations require `Authorization: Bearer <token>`
+  (new `EnsureDeveloperPortalToken` middleware). Added rotate-token
+  endpoint.
+- **Payment webhook ordering** — `WebhookController` now verifies the
+  signature BEFORE dedupe + enforces a replay-tolerance window via the
+  new `ProvidesWebhookTimestamp` contract. Unsigned forgeries can no
+  longer poison the dedupe table.
+- **Production gateway idempotency** — `PaymentManager::charge($g, $r,
+  $key)` wraps the driver call in `IdempotencyCache` so retries within
+  the configured TTL return the original `ChargeResult`.
+- **Defensive policies** — `Event`/`Order`/`DeveloperAccount`/
+  `ScannerProfile`/`OfflineTicketBatch` each have a Laravel Policy
+  layered on top of the existing `permission:<key>` route middleware.
+  Policy checks combine Spatie permission + org-membership UUID match.
+- **Edge integration** — `TicketVoided` event ↔ `PushVoidedTicketToEdgeJob`
+  upserts the ticket UUID into the scanner-edge KV namespace so subsequent
+  scans are denied without origin RTT. Storefront-edge now verifies
+  `X-Origin-Signature` (HMAC-SHA256 of `t.body`) before caching responses.
+- **CI security gates** — `phpstan` (larastan level 5), `composer audit
+  --locked`, `pnpm audit --audit-level=high`, and a SQLite migration smoke
+  test all run on every push.
+- **Frontend hygiene** — pnpm-only (`package-lock.json` deleted, lockfile
+  is `pnpm-lock.yaml`), `strictNullChecks` on, `dompurify` sanitises
+  rich-text before `dangerouslySetInnerHTML`, eslint enforces
+  `react/jsx-no-target-blank` (no referrer).
+- **Cleanup** — `OrderConfirmationMail` class-exists guard removed (the
+  class is real); AppleVAS encrypted-blob decrypt path implemented;
+  `AdManagementService` gated by `config('ads.enabled')` and throws
+  `FeatureNotImplementedException` instead of `RuntimeException`;
+  `scanner-pair` route has a 5-per-IP-per-minute throttle; `.env.example`
+  enumerates every env var the new modules read.

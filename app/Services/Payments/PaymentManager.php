@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Payments;
 
 use App\Services\Payments\Contracts\PaymentGateway;
+use App\Services\Payments\Data\ChargeRequest;
+use App\Services\Payments\Data\ChargeResult;
 use App\Services\Payments\Exceptions\GatewayNotConfiguredException;
+use App\Services\Payments\Support\IdempotencyCache;
 use Illuminate\Contracts\Container\Container;
 
 /**
@@ -71,6 +74,30 @@ class PaymentManager
         }
 
         return $this->resolved[$name] = $instance;
+    }
+
+    /**
+     * Charge through a named gateway with optional idempotency. Calling
+     * with the same $idempotencyKey within the configured TTL returns
+     * the original ChargeResult instead of double-charging.
+     *
+     * Gateways are free to call $manager->gateway($name)->charge(...)
+     * directly when they handle their own idempotency (the sandbox
+     * already does). For every other case, route through here.
+     */
+    public function charge(string $gateway, ChargeRequest $request, ?string $idempotencyKey = null): ChargeResult
+    {
+        $driver = $this->gateway($gateway);
+
+        if ($idempotencyKey === null || $idempotencyKey === '') {
+            return $driver->charge($request);
+        }
+
+        return IdempotencyCache::default()->remember(
+            $gateway,
+            $idempotencyKey,
+            fn (): ChargeResult => $driver->charge($request),
+        );
     }
 
     /**

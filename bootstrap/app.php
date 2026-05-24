@@ -47,6 +47,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // Stakeholder Portal — sponsors, media, vendors, providers.
             require __DIR__.'/../routes/api-stakeholder.php';
+
+            // Physical-ticket distribution network — POS sales, dispatch
+            // receipt, and backoffice forensics.
+            require __DIR__.'/../routes/api-distribution.php';
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -67,6 +71,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/v1/extensions/*',
             'api/v1/stakeholder/*',
             'api/developer/*',
+            'api/v1/distributor/*',
             'widget/v1/*',
         ]);
 

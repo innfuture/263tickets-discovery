@@ -208,4 +208,10 @@ return [
         'blocked_email_domains' => array_filter(explode(',', (string) env('STOREFRONT_BLOCKED_EMAIL_DOMAINS', 'mailinator.com,trashmail.com'))),
         'ip_reputation_url' => env('STOREFRONT_IP_REPUTATION_URL', 'http://proxycheck.io/v2/{ip}'),
     ],
+
+    // HMAC secret shared with the storefront-edge Cloudflare Worker.
+    // When set, SignStorefrontResponse stamps every storefront JSON
+    // response with X-Origin-Signature: t=<unix>,v1=<hex>. The edge
+    // verifies before caching. Blank = signing disabled (dev / CI).
+    'signing_secret' => env('STOREFRONT_SIGNING_SECRET', ''),
 ];
