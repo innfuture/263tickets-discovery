@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AdCampaignStatus;
 use App\Enums\AdPlatform;
+use App\Exceptions\FeatureNotImplementedException;
 use App\Models\AdCampaign;
 use App\Models\Event;
 use Illuminate\Database\Eloquent\Model;
@@ -143,15 +144,15 @@ class AdManagementService
      */
     private function createGoogleAdsCampaign(AdCampaign $campaign, mixed $owner): string
     {
-        // Stub — integrate google/ads-php-lib or a REST HTTP call here.
-        // Expected response: campaign resource name -> parse campaign ID from it.
-        throw new \RuntimeException('Google Ads integration not yet configured. Set GOOGLE_ADS_* credentials in .env.');
+        $this->assertEnabled('google_ads.create_campaign');
+        throw new FeatureNotImplementedException('Google Ads integration not yet configured. Set GOOGLE_ADS_* credentials in .env.');
     }
 
     /** @return array<string, mixed> */
     private function fetchGoogleAdsMetrics(AdCampaign $campaign): array
     {
-        throw new \RuntimeException('Google Ads metrics sync not yet configured.');
+        $this->assertEnabled('google_ads.metrics');
+        throw new FeatureNotImplementedException('Google Ads metrics sync not yet configured.');
     }
 
     // ─── Meta (Facebook / Instagram) ─────────────────────────────────────────
@@ -165,17 +166,24 @@ class AdManagementService
      */
     private function createMetaCampaign(AdCampaign $campaign, mixed $owner): string
     {
-        // Stub — use guzzle Http::post() to:
-        // 1. POST /v20.0/act_{ad_account_id}/campaigns  -> campaign_id
-        // 2. POST /v20.0/act_{ad_account_id}/adsets     -> ad_set_id
-        // 3. POST /v20.0/act_{ad_account_id}/ads        -> ad_id
-        throw new \RuntimeException('Meta Ads integration not yet configured. Set META_* credentials in .env.');
+        $this->assertEnabled('meta_ads.create_campaign');
+        throw new FeatureNotImplementedException('Meta Ads integration not yet configured. Set META_* credentials in .env.');
     }
 
     /** @return array<string, mixed> */
     private function fetchMetaMetrics(AdCampaign $campaign): array
     {
-        throw new \RuntimeException('Meta Ads metrics sync not yet configured.');
+        $this->assertEnabled('meta_ads.metrics');
+        throw new FeatureNotImplementedException('Meta Ads metrics sync not yet configured.');
+    }
+
+    protected function assertEnabled(string $hook): void
+    {
+        if (! (bool) config('ads.enabled', false)) {
+            throw new FeatureNotImplementedException(
+                "Ads integration disabled (config('ads.enabled')=false). Hook: {$hook}.",
+            );
+        }
     }
 
     // ─── YouTube ─────────────────────────────────────────────────────────────

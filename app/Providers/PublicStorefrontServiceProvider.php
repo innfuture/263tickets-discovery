@@ -263,6 +263,11 @@ class PublicStorefrontServiceProvider extends ServiceProvider
             return Limit::perMinute($perTokenLimit)->by($key);
         });
 
+        // Scanner pairing: per-IP bucket. Pairing is one-time-code
+        // exchange; legitimate clients call this at most a handful of
+        // times. Tight cap blunts pairing-code brute force.
+        RateLimiter::for('scanner-pair', fn (Request $request) => Limit::perMinute(5)->by((string) ($request->ip() ?? 'anon')));
+
         // Developer API: per-key bucket honouring the key's tier
         // (Free 60/min, Basic 120, Enterprise 1000, Premium 5000).
         RateLimiter::for('developer-key', function (Request $request) {

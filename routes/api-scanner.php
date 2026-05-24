@@ -33,7 +33,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('api/v1/scanning')->name('api.scanning.')->group(function (): void {
-    Route::post('pair', PairingController::class)->name('pair');
+    Route::post('pair', PairingController::class)
+        ->middleware('throttle:scanner-pair')
+        ->name('pair');
 
     Route::middleware(ScannerTokenAuth::class)->group(function (): void {
         Route::get('me', MeController::class)->name('me');
