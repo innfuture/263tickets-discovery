@@ -59,6 +59,29 @@ return [
             FlatRateTaxRule::class,
         ],
 
+        // Dynamic-pricing pass — runs after subtotal-build, before
+        // discount. Empty by default; bring rules online deliberately
+        // because surge pricing is policy-sensitive.
+        'dynamic_rules' => [
+            // \App\Services\Storefront\Pricing\Dynamic\TimeOfDayPricingRule::class,
+            // \App\Services\Storefront\Pricing\Dynamic\InventoryPressurePricingRule::class,
+        ],
+
+        // Time-of-day windows for TimeOfDayPricingRule. First match wins.
+        // Hours are measured FROM event start (positive = before event).
+        'time_of_day_windows' => [
+            // ['hours_before_event_min' => 168, 'hours_before_event_max' => null, 'multiplier' => 0.90, 'label' => 'Early-bird discount'],
+            // ['hours_before_event_min' => 0,   'hours_before_event_max' => 24,   'multiplier' => 1.05, 'label' => 'Peak surge'],
+        ],
+
+        // Inventory-pressure tiers for InventoryPressurePricingRule.
+        // Highest matching tier wins. Skipped on uncapped events.
+        'inventory_pressure_tiers' => [
+            // ['sold_pct_min' => 70, 'multiplier' => 1.05],
+            // ['sold_pct_min' => 85, 'multiplier' => 1.10],
+            // ['sold_pct_min' => 95, 'multiplier' => 1.20],
+        ],
+
         // Default platform take when the organization hasn't set their
         // own override. Expressed as basis points (250 = 2.5%).
         'platform_fee_bps' => (int) env('STOREFRONT_PLATFORM_FEE_BPS', 250),
@@ -207,6 +230,30 @@ return [
         'blocked_emails' => array_filter(explode(',', (string) env('STOREFRONT_BLOCKED_EMAILS', ''))),
         'blocked_email_domains' => array_filter(explode(',', (string) env('STOREFRONT_BLOCKED_EMAIL_DOMAINS', 'mailinator.com,trashmail.com'))),
         'ip_reputation_url' => env('STOREFRONT_IP_REPUTATION_URL', 'http://proxycheck.io/v2/{ip}'),
+    ],
+
+    'wallet' => [
+        // Live pass updates outbox tunables. Apple + Google each have
+        // their own enabled flag — flip both off to record updates to
+        // the outbox without ever calling vendor APIs (dev/CI safe).
+        'outbox_batch_size' => (int) env('WALLET_OUTBOX_BATCH', 100),
+        'outbox_max_attempts' => (int) env('WALLET_OUTBOX_MAX_ATTEMPTS', 8),
+
+        'apple' => [
+            'enabled' => filter_var(env('WALLET_APPLE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            // PEM-encoded PassTypeID certificate. Required to sign
+            // pass.json + invoke APNS via the device's pushToken.
+            'cert_path' => env('WALLET_APPLE_CERT_PATH'),
+            'cert_passphrase' => env('WALLET_APPLE_CERT_PASSPHRASE', ''),
+            'web_service_base_url' => env('WALLET_APPLE_WEBSERVICE_URL'),
+        ],
+        'google' => [
+            'enabled' => filter_var(env('WALLET_GOOGLE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            // Service-account JSON path. Used to sign JWTs for the
+            // walletobjects REST API.
+            'service_account_json_path' => env('WALLET_GOOGLE_SA_PATH'),
+            'issuer_id' => env('WALLET_GOOGLE_ISSUER_ID'),
+        ],
     ],
 
     // HMAC secret shared with the storefront-edge Cloudflare Worker.

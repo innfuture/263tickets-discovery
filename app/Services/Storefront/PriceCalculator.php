@@ -6,6 +6,7 @@ namespace App\Services\Storefront;
 
 use App\Models\CheckoutSession;
 use App\Services\Storefront\Contracts\DiscountResolver;
+use App\Services\Storefront\Contracts\DynamicPricingRule;
 use App\Services\Storefront\Contracts\FeeRule;
 use App\Services\Storefront\Contracts\TaxRule;
 use App\Services\Storefront\Data\PriceLine;
@@ -75,6 +76,20 @@ class PriceCalculator
                     'source' => 'addon',
                 ],
             ));
+        }
+
+        // ── dynamic pricing ─────────────────────────────────────────
+        // Runs after subtotal-build, before discount, so promo codes
+        // apply on top of the surge-adjusted base. Each rule emits a
+        // PriceLine with meta.dynamic_rule = identifier for telemetry.
+        foreach ((array) config('storefront.pricing.dynamic_rules', []) as $ruleClass) {
+            if (! is_string($ruleClass) || ! class_exists($ruleClass)) {
+                continue;
+            }
+            $rule = $this->container->make($ruleClass);
+            if ($rule instanceof DynamicPricingRule) {
+                $quote = $rule->apply($session, $quote);
+            }
         }
 
         // ── discount ────────────────────────────────────────────────

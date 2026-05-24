@@ -104,3 +104,11 @@ Schedule::command('integrations:validate --strict')
     ->dailyAt('07:00')
     ->onOneServer()
     ->emailOutputOnFailure((string) env('OPS_ALERT_EMAIL', 'ops@example.com'));
+
+// Wallet-pass update outbox — drains queued Apple/Google updates
+// in batches. Sub-minute cadence is overkill (the outbox absorbs
+// the latency); every minute matches the rest of the outbox cohort.
+Schedule::job(new App\Jobs\Storefront\DispatchPendingWalletUpdatesJob)
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
