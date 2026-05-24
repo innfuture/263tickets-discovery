@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\Public\TransferController;
 use App\Http\Controllers\Api\Public\WaitlistController;
 use App\Http\Controllers\Api\Public\WalletPassController;
 use App\Http\Controllers\Api\Public\WidgetController;
+use App\Http\Middleware\CacheStorefrontResponse;
 use App\Http\Middleware\EnsureCaptchaPassed;
 use App\Http\Middleware\SignStorefrontResponse;
 use Illuminate\Support\Facades\Route;
@@ -50,7 +51,7 @@ Route::prefix('api/v1/public')->group(function () {
     // ── Discovery ──────────────────────────────────────────────────────
     // SignStorefrontResponse stamps cacheable discovery responses with
     // an HMAC the storefront-edge worker verifies before storing in KV.
-    Route::middleware(['throttle:storefront-discovery', SignStorefrontResponse::class])->group(function () {
+    Route::middleware(['throttle:storefront-discovery', SignStorefrontResponse::class, CacheStorefrontResponse::class])->group(function () {
         Route::get('events', [EventCatalogController::class, 'index'])
             ->name('public.events.index');
         Route::get('events/featured', [EventCatalogController::class, 'featured'])

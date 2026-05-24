@@ -178,6 +178,13 @@ return [
         // ISR-style cache window for the public events list. Keep
         // short — buyers expect "sold out" to reflect quickly.
         'list_cache_seconds' => (int) env('STOREFRONT_LIST_CACHE_SECONDS', 30),
+
+        // Cache-Control max-age applied by CacheStorefrontResponse
+        // middleware. Edge + CDN honour this; storefront-edge worker
+        // also reads it to size its KV TTL. Match list_cache_seconds
+        // by default; bump if buyers can tolerate longer "sold out"
+        // staleness in exchange for better cache-hit rates.
+        'cache_control_max_age' => (int) env('STOREFRONT_DISCOVERY_CACHE_MAX_AGE', 30),
     ],
 
     'rate_limits' => [

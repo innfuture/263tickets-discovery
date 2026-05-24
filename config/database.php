@@ -47,6 +47,23 @@ return [
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
+            // Read-replica routing. When DB_READ_HOST is set, Laravel
+            // sends SELECTs to the replica and writes to the primary.
+            // Falls back to a single-host config when DB_READ_HOST is
+            // blank, so dev environments remain a one-line config.
+            'read' => env('DB_READ_HOST') ? [
+                'host' => array_filter(explode(',', (string) env('DB_READ_HOST'))),
+                'port' => env('DB_READ_PORT', env('DB_PORT', '3306')),
+                'username' => env('DB_READ_USERNAME', env('DB_USERNAME', 'root')),
+                'password' => env('DB_READ_PASSWORD', env('DB_PASSWORD', '')),
+            ] : null,
+            'write' => env('DB_READ_HOST') ? [
+                'host' => env('DB_HOST', '127.0.0.1'),
+                'port' => env('DB_PORT', '3306'),
+                'username' => env('DB_USERNAME', 'root'),
+                'password' => env('DB_PASSWORD', ''),
+            ] : null,
+            'sticky' => true, // post-write reads on the same request hit the writer
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
