@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One Order ↔ one ReferralCode (unique constraint enforces single
+ * One Order ↔ one AffiliateCode (unique constraint enforces single
  * attribution per order). commission_cents is frozen at sale time.
  */
-class ReferralAttribution extends Model
+class AffiliateAttribution extends Model
 {
     use HasFactory;
 
@@ -22,7 +22,7 @@ class ReferralAttribution extends Model
     public const STATUS_REVERSED = 'reversed';
 
     protected $fillable = [
-        'referral_code_id', 'order_id',
+        'affiliate_code_id', 'order_id',
         'commission_cents', 'currency', 'settlement_status',
         'attributed_at', 'settled_at',
     ];
@@ -33,10 +33,10 @@ class ReferralAttribution extends Model
         'settled_at' => 'datetime',
     ];
 
-    /** @return BelongsTo<ReferralCode, $this> */
-    public function referralCode(): BelongsTo
+    /** @return BelongsTo<AffiliateCode, $this> */
+    public function affiliateCode(): BelongsTo
     {
-        return $this->belongsTo(ReferralCode::class);
+        return $this->belongsTo(AffiliateCode::class);
     }
 
     /** @return BelongsTo<Order, $this> */

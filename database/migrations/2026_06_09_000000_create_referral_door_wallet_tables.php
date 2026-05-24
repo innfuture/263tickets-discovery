@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Schema for the Tier-1 / Tier-2 roadmap additions:
  *
- *   referral_codes        — promo-code-like surface for affiliates
+ *   affiliate_codes        — promo-code-like surface for affiliates
  *                            with commission attribution per order.
- *   referral_attributions — pivot Order ↔ ReferralCode, captures
+ *   affiliate_attributions — pivot Order ↔ ReferralCode, captures
  *                            commission cents at sale time.
  *   door_staff_shifts     — scheduled door-staff windows on an Event,
  *                            cross-references with door_pin to gate
@@ -23,8 +23,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasTable('referral_codes')) {
-            Schema::create('referral_codes', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_codes')) {
+            Schema::create('affiliate_codes', function (Blueprint $table) {
                 $table->id();
                 $table->uuid('uuid')->unique();
                 $table->unsignedBigInteger('organization_id')->index();
@@ -50,10 +50,10 @@ return new class extends Migration
             });
         }
 
-        if (! Schema::hasTable('referral_attributions')) {
-            Schema::create('referral_attributions', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_attributions')) {
+            Schema::create('affiliate_attributions', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('referral_code_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('affiliate_code_id')->constrained('affiliate_codes')->cascadeOnDelete();
                 $table->foreignId('order_id')->constrained()->cascadeOnDelete();
                 // Captured AT sale time so future commission-rate
                 // changes don't retroactively alter historical payouts.
@@ -65,7 +65,7 @@ return new class extends Migration
                 $table->timestamp('settled_at')->nullable();
                 $table->timestamps();
 
-                $table->unique('order_id', 'referral_attr_order_uniq');
+                $table->unique('order_id', 'affiliate_attr_order_uniq');
             });
         }
 
@@ -119,7 +119,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('wallet_pass_updates');
         Schema::dropIfExists('door_staff_shifts');
-        Schema::dropIfExists('referral_attributions');
-        Schema::dropIfExists('referral_codes');
+        Schema::dropIfExists('affiliate_attributions');
+        Schema::dropIfExists('affiliate_codes');
     }
 };
