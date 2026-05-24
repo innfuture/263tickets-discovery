@@ -54,3 +54,30 @@ Broadcast::channel('organization.{uuid}.orders', function (User $user, string $u
  * updates on the buyer-facing event page. No auth callback registered
  * (Laravel treats unauth'd channels as public by default).
  */
+
+/*
+ * `event.{slug}.draft` — PRESENCE channel for the collaborative
+ * event editor. Anyone with `event.update` on the owning org can
+ * subscribe + see who else is editing.
+ */
+Broadcast::channel('event.{slug}.draft', function (User $user, string $slug): array|bool {
+    $event = \App\Models\Event::query()->where('slug', $slug)->first();
+    if (! $event) {
+        return false;
+    }
+    $org = Organization::query()->where('uuid', $event->organisation_id)->first();
+    if (! $org) {
+        return false;
+    }
+    $isMember = $user->organizationMemberships()->where('organization_id', $org->id)->exists();
+    if (! $isMember) {
+        return false;
+    }
+
+    // Presence payload — visible to every other subscriber.
+    return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'avatar' => $user->profile_photo_path ?? null,
+    ];
+});

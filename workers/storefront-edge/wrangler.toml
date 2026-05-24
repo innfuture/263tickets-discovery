@@ -1,0 +1,26 @@
+name = "example-app-storefront-edge"
+main = "src/index.ts"
+compatibility_date = "2024-09-01"
+account_id = "" # set in your Cloudflare account
+
+[vars]
+ORIGIN_URL = "https://app.example.com"
+# Comma-separated paths to personalise. Other paths pass through.
+PERSONALISE_PATHS = "/api/v1/public/events/featured,/api/v1/public/events"
+# Default currency when we can't infer.
+FALLBACK_CURRENCY = "USD"
+
+# Maps ISO-3166 country → currency. Override per-deployment if your
+# audience skews differently.
+[vars.COUNTRY_CURRENCY]
+ZW = "USD"
+ZA = "ZAR"
+GB = "GBP"
+IE = "EUR"
+US = "USD"
+
+[[kv_namespaces]]
+# Cached personalised responses keyed by (path, country, currency).
+# Origin's `Cache-Control: max-age=30` is respected.
+binding = "PERSONALISED_CACHE"
+id = "" # cf kv:namespace create personalised-cache

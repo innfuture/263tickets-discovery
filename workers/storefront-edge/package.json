@@ -1,0 +1,18 @@
+{
+  "name": "example-app-storefront-edge",
+  "version": "0.1.0",
+  "description": "Cloudflare Worker that personalises the public storefront JSON surface at the edge — currency, country-aware featured events, language hint — before any request reaches origin.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "wrangler": "^3.78.0"
+  }
+}

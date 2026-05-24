@@ -44,6 +44,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // Public Developer API (tiered) + developer portal.
             require __DIR__.'/../routes/api-developer.php';
+
+            // Stakeholder Portal — sponsors, media, vendors, providers.
+            require __DIR__.'/../routes/api-stakeholder.php';
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -62,6 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/v1/buyer/*',
             'api/v1/marketplace/*',
             'api/v1/extensions/*',
+            'api/v1/stakeholder/*',
             'api/developer/*',
             'widget/v1/*',
         ]);
@@ -72,6 +76,18 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             SetOrganizationUrlDefaults::class,
             TrackUserSession::class,
+        ]);
+
+        // RBAC middleware aliases. Spatie auto-discovers via its
+        // service provider but Laravel 11+ requires explicit aliasing
+        // for use in `middleware('permission:event.publish')` chains.
+        $middleware->alias([
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            // Custom-domain routing — attaches `host_organization` to
+            // requests served on a verified `organization_domains.hostname`.
+            'resolve.host_org' => \App\Http\Middleware\ResolveOrganizationFromHost::class,
         ]);
     })
     ->booted(function (): void {

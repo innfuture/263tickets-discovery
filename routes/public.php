@@ -64,6 +64,9 @@ Route::prefix('api/v1/public')->group(function () {
         Route::get('events/{slug}/recommendations', [RecommendationController::class, 'index'])
             ->name('public.events.recommendations');
 
+        Route::get('events/{slug}/predictions', [\App\Http\Controllers\Api\Public\EventPredictionController::class, 'show'])
+            ->name('public.events.predictions');
+
         Route::get('gift-cards/{code}/balance', [GiftCardController::class, 'balance'])
             ->name('public.giftcards.balance');
 

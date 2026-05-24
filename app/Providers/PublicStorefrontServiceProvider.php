@@ -10,6 +10,7 @@ use App\Events\TicketScanned;
 use App\Listeners\Automation\PublishEventInventoryChanged;
 use App\Listeners\Automation\PublishOrderPaid;
 use App\Listeners\Automation\PublishTicketScanned;
+use App\Listeners\Buyer\NotifyBuyerOnOrderPaid;
 use App\Listeners\Storefront\BroadcastEventInventory;
 use App\Listeners\Storefront\CreditReferrerOnOrderPaid;
 use App\Listeners\Storefront\QueueOrderConfirmation;
@@ -19,6 +20,12 @@ use App\Models\PaymentTransaction;
 use App\Observers\EventObserver;
 use App\Observers\OfflineTicketVoidObserver;
 use App\Observers\PaymentTransactionObserver;
+use App\Services\Ai\ClaudeAssistant;
+use App\Services\Ai\Contracts\AiAssistant;
+use App\Services\Ai\Contracts\EmbeddingClient;
+use App\Services\Ai\OpenAiEmbeddingClient;
+use App\Services\Ai\StubAiAssistant;
+use App\Services\Ai\StubEmbeddingClient;
 use App\Services\Cloudflare\CloudflareKv;
 use App\Services\EventBus\Contracts\DomainBus;
 use App\Services\EventBus\LaravelEventBus;
@@ -163,6 +170,29 @@ class PublicStorefrontServiceProvider extends ServiceProvider
             apiToken: config('storefront.cloudflare.api_token'),
         ));
 
+        // AI: embedding client + assistant. Stubs by default so dev /
+        // sandbox runs work without API keys.
+        $this->app->singleton(EmbeddingClient::class, function () {
+            return match ((string) config('ai.embeddings.driver', 'stub')) {
+                'openai' => new OpenAiEmbeddingClient(
+                    apiKey: (string) config('ai.embeddings.openai.api_key'),
+                    model: (string) config('ai.embeddings.openai.model'),
+                    dims: (int) config('ai.embeddings.openai.dimensions', 1536),
+                ),
+                default => new StubEmbeddingClient,
+            };
+        });
+
+        $this->app->singleton(AiAssistant::class, function () {
+            return match ((string) config('ai.assistant.driver', 'stub')) {
+                'claude' => new ClaudeAssistant(
+                    apiKey: (string) config('ai.assistant.claude.api_key'),
+                    model: (string) config('ai.assistant.claude.model'),
+                ),
+                default => new StubAiAssistant,
+            };
+        });
+
         // NFC providers — Apple VAS / Google Smart Tap. Stub is plain-
         // class instantiable; these two need credentials wired in.
         $this->app->bind(AppleVasProvider::class, fn () => new AppleVasProvider(
@@ -194,6 +224,10 @@ class PublicStorefrontServiceProvider extends ServiceProvider
         // Referral rewards — credits the referrer's gift card balance
         // for any order that carried their code in metadata.
         Event::listen(OrderPaid::class, CreditReferrerOnOrderPaid::class);
+
+        // Buyer dashboard — drop a notification into the buyer's bell
+        // for every paid order on a linked Buyer account.
+        Event::listen(OrderPaid::class, NotifyBuyerOnOrderPaid::class);
 
         $this->configureRateLimiters();
     }

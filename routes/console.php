@@ -75,3 +75,10 @@ Schedule::job(new DispatchPendingOutboxWebhooksJob)
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
+
+// Sellout-ETA predictions — daily linear-velocity regression across
+// every upcoming non-sold-out event. Cheap enough to run hourly if
+// dashboards demand fresher numbers; daily strikes the right balance.
+Schedule::job(new App\Jobs\Analytics\ComputeSelloutPredictionsJob)
+    ->dailyAt('04:00')
+    ->onOneServer();

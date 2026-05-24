@@ -60,6 +60,10 @@ Route::prefix('api/developer/v1')
 
         // Enterprise+
         Route::middleware(EnsureDeveloperApiKey::class.':'.DeveloperApiKey::SCOPE_ANALYTICS_READ)
-            ->get('analytics/events', [DeveloperPublicApiController::class, 'analyticsEvents'])
-            ->name('developer.v1.analytics.events');
+            ->group(function () {
+                Route::get('analytics/events', [DeveloperPublicApiController::class, 'analyticsEvents'])
+                    ->name('developer.v1.analytics.events');
+                Route::get('analytics/cross-org', \App\Http\Controllers\Api\Developer\CrossOrgAnalyticsController::class)
+                    ->name('developer.v1.analytics.cross_org');
+            });
     });
