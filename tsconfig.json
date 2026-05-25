@@ -109,11 +109,7 @@
         "skipLibCheck": true /* Skip type checking all .d.ts files. */,
         "baseUrl": ".",
         "paths": {
-            "@/*": ["./resources/js/*"],
-            "@ads": ["./resources/js/components/ads"],
-            "@ads/*": ["./resources/js/components/ads/*"],
-            "@ds": ["./resources/js/design-system"],
-            "@ds/*": ["./resources/js/design-system/*"]
+            "@/*": ["./resources/js/*"]
         },
         "jsx": "react-jsx"
     },
@@ -121,11 +117,5 @@
         "resources/js/**/*.ts",
         "resources/js/**/*.d.ts",
         "resources/js/**/*.tsx"
-    ],
-    "exclude": [
-        "node_modules",
-        "vendor",
-        "public",
-        "bootstrap/ssr"
     ]
 }

@@ -1,119 +1,48 @@
 import { Head, router } from '@inertiajs/react';
-import { Box, Inline, Stack, Text } from '@atlaskit/primitives';
-import PlugIcon from '@atlaskit/icon/core/link';
-import DeleteIcon from '@atlaskit/icon/core/delete';
-import Lozenge from '@atlaskit/lozenge';
+import { Plug, Trash2 } from 'lucide-react';
 import { BrandIcon } from '@/components/brand-icon';
-import { Card, CardContent, CardHeader, CardTitle, IconButton, PageHeading, Tag, TagGroup, useConfirm } from '@ads';
+import Heading from '@/components/heading';
+import { useConfirm } from '@/components/ui/confirmation-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Breadcrumb = { title: string; href: string };
-type Connection = {
-    id: number;
-    provider: string;
-    provider_name: string;
-    category: string;
-    account_label: string | null;
-    scopes: string[];
-    connected_by: string | null;
-    connected_at: string | null;
-};
+type Connection = { id: number; provider: string; provider_name: string; category: string; account_label: string | null; scopes: string[]; connected_by: string | null; connected_at: string | null };
 
 export default function ConnectedPage({ connections }: { connections: Connection[]; breadcrumbs: Breadcrumb[] }) {
     const confirm = useConfirm();
     return (
         <>
             <Head title="Connected apps — Settings" />
-            <Box padding="space.400">
-                <Stack space="space.300">
-                    <PageHeading
-                        variant="small"
-                        title="Connected apps"
-                        description="Apps already connected to this organization."
-                    />
+            <div className="space-y-6">
+                <Heading variant="small" title="Connected apps" description="Apps already connected to this organization." />
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle size="small">
-                                <Inline space="space.100" alignBlock="center">
-                                    <PlugIcon label="" />
-                                    <Text weight="semibold">Connections ({connections.length})</Text>
-                                </Inline>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {connections.length === 0 ? (
-                                <Text color="color.text.subtle">No connected apps.</Text>
-                            ) : (
-                                <Stack space="space.100">
-                                    {connections.map((c) => (
-                                        <Box
-                                            key={c.id}
-                                            padding="space.150"
-                                            style={{
-                                                borderRadius: 'var(--ds-border-radius-200)',
-                                                border: '1px solid var(--ds-border)',
-                                            }}
-                                        >
-                                            <Inline spread="space-between" alignBlock="start" space="space.100">
-                                                <Inline space="space.150" alignBlock="start">
-                                                    <Box
-                                                        style={{
-                                                            display: 'inline-flex',
-                                                            width: 36,
-                                                            height: 36,
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            border: '1px solid var(--ds-border)',
-                                                            borderRadius: 'var(--ds-border-radius-200)',
-                                                            backgroundColor: 'var(--ds-background-default)',
-                                                            flexShrink: 0,
-                                                        }}
-                                                    >
-                                                        <BrandIcon provider={c.provider} size={20} />
-                                                    </Box>
-                                                    <Stack space="space.050">
-                                                        <Inline space="space.100" alignBlock="center">
-                                                            <Text weight="semibold">{c.provider_name}</Text>
-                                                            <Lozenge>{c.category}</Lozenge>
-                                                        </Inline>
-                                                        <Text size="small" color="color.text.subtle">
-                                                            {c.account_label ?? '—'} · Connected by {c.connected_by ?? '—'}
-                                                            {c.connected_at
-                                                                ? ` on ${new Date(c.connected_at).toLocaleDateString()}`
-                                                                : ''}
-                                                        </Text>
-                                                        {c.scopes.length > 0 ? (
-                                                            <TagGroup>
-                                                                {c.scopes.map((s) => (
-                                                                    <Tag key={s} text={s} color="standard" />
-                                                                ))}
-                                                            </TagGroup>
-                                                        ) : null}
-                                                    </Stack>
-                                                </Inline>
-                                                <IconButton
-                                                    icon={<DeleteIcon label="" />}
-                                                    label={`Disconnect ${c.provider_name}`}
-                                                    size="compact"
-                                                    onClick={async () => {
-                                                        if (
-                                                            await confirm({
-                                                                title: `Disconnect ${c.provider_name}?`,
-                                                                tone: 'destructive',
-                                                            })
-                                                        )
-                                                            router.delete(`/settings/integrations/connected/${c.id}`);
-                                                    }}
-                                                />
-                                            </Inline>
-                                        </Box>
-                                    ))}
-                                </Stack>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Stack>
-            </Box>
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Plug className="size-4" /> Connections ({connections.length})</CardTitle></CardHeader>
+                    <CardContent>
+                        {connections.length === 0 ? <p className="text-sm text-muted-foreground">No connected apps.</p> : (
+                            <ul className="space-y-2">
+                                {connections.map((c) => (
+                                    <li key={c.id} className="flex items-start justify-between rounded-md border p-3">
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background">
+                                                <BrandIcon provider={c.provider} size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">{c.provider_name} <Badge variant="secondary" className="ml-2">{c.category}</Badge></p>
+                                                <p className="text-xs text-muted-foreground">{c.account_label ?? '—'} · Connected by {c.connected_by ?? '—'}{c.connected_at ? ` on ${new Date(c.connected_at).toLocaleDateString()}` : ''}</p>
+                                                <div className="mt-1 flex flex-wrap gap-1">{c.scopes.map((s) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}</div>
+                                            </div>
+                                        </div>
+                                        <Button size="sm" variant="ghost" onClick={async () => { if (await confirm({ title: `Disconnect ${c.provider_name}?`, tone: 'destructive' })) router.delete(`/settings/integrations/connected/${c.id}`); }}><Trash2 className="size-3.5" /></Button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </>
     );
 }
